@@ -1021,6 +1021,23 @@ function buildUltraCompactStructuredAnalysisPrompt(input = {}, config) {
       actionReference: "观察",
       reasons: ["一句中文理由"],
       risks: ["一句中文风险"],
+      factorBreakdown: [
+        { key: "macro", label: "宏观", score: 50, summary: "一句中文摘要" },
+        { key: "industry", label: "行业", score: 50, summary: "一句中文摘要" },
+        { key: "fundamental", label: "基本面", score: 50, summary: "一句中文摘要" },
+        { key: "valuation", label: "估值", score: 50, summary: "一句中文摘要" },
+        { key: "technical", label: "技术面", score: 50, summary: "一句中文摘要" },
+        { key: "sentiment", label: "情绪", score: 50, summary: "一句中文摘要" },
+      ],
+      scenarioAnalysis: {
+        horizon: "1-3个月",
+        cases: [
+          { key: "bull", label: "乐观情景", probability: 25, summary: "一句中文摘要" },
+          { key: "base", label: "基准情景", probability: 50, summary: "一句中文摘要" },
+          { key: "bear", label: "谨慎情景", probability: 25, summary: "一句中文摘要" },
+        ],
+        disclaimer: "模型参考概率仅供研究参考，不构成投资建议或收益承诺。",
+      },
       disclaimer: "模型参考概率仅供研究参考，不构成投资建议或收益承诺。",
     },
   };
@@ -1029,7 +1046,7 @@ function buildUltraCompactStructuredAnalysisPrompt(input = {}, config) {
     {
       role: "system",
       content:
-        "只输出纯 JSON 对象，不要 Markdown，不要代码块，不要解释。字段必须和 requiredJsonShape 一致。",
+        "只输出纯 JSON 对象，不要 Markdown，不要代码块，不要解释。字段必须和 requiredJsonShape 一致，包含 6 个 factorBreakdown 和 3 个 scenarioAnalysis.cases。",
     },
     {
       role: "user",
