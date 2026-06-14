@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v110";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v111";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、451 条自动化回归目标",
+    "后端 API、生产门禁规划、452 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -8614,6 +8614,7 @@ const projectProgress = {
     "AI 备用模型可在主模型缺 key 时独立进入真实模型接力，避免主模型未配置阻断 Gemini/OpenRouter/Groq",
     "固定 Render 网址新增线上状态检查，可核对版本、接口、AI 接力和完整 AI 输出状态",
     "AI 备用模型诊断会显示每个槽位缺少的 Render Dashboard 变量",
+    "新闻第一屏只展示公司直接/公告/公开言论，行业和市场背景默认折叠",
     "每日开发日志已延续到 2026-06-14",
   ],
   blockers: [
@@ -13829,6 +13830,14 @@ function sortNewsForDisplay(items = []) {
   });
 }
 
+function getFirstScreenNewsItems(sortedItems = []) {
+  const directItems = sortedItems.filter((item) => item.directStockRelevance || Number(item.relevanceRank) <= 2);
+  if (directItems.length) return directItems.slice(0, 5);
+  return sortedItems
+    .filter((item) => Number(item.relevanceRank) <= 3 && item.relevanceGroup !== "市场相关")
+    .slice(0, 3);
+}
+
 function getLowCredibilityHint(news) {
   const score = Number(news?.sourceCredibilityScore);
   if (!Number.isFinite(score) || score <= 0 || score >= 70) return "";
@@ -13885,7 +13894,11 @@ function renderNewsSummary(newsState, visibleCount, hiddenCount) {
     <div class="news-summary" aria-label="新闻摘要">
       <div>
         <strong>${escapeHtml(sourceLabel)}</strong>
-        <span>默认只显示 ${escapeHtml(String(visibleCount))} 条最相关新闻；泛市场内容折叠，不使用样例兜底。</span>
+        <span>${escapeHtml(
+          visibleCount > 0
+            ? `默认只显示 ${visibleCount} 条公司直接/公告/公开言论；泛市场内容折叠，不使用样例兜底。`
+            : "未发现公司直接新闻；行业和市场背景已折叠，不混入个股重点第一屏。",
+        )}</span>
         ${newsState.newsIssueMessage ? `<span>${escapeHtml(newsState.newsIssueMessage)}</span>` : ""}
       </div>
       <div class="news-summary-chips">
@@ -13978,11 +13991,9 @@ function renderNews(newsState = getNewsState(state.selectedMarket)) {
   }
 
   const displayState = { ...newsState, items: sortedItems };
-  const directlyRelevantItems = sortedItems.filter((item) => item.directStockRelevance || Number(item.relevanceRank) <= 2);
-  const backgroundItems = sortedItems.filter((item) => !directlyRelevantItems.includes(item));
-  const visibleItems = (directlyRelevantItems.length ? directlyRelevantItems : sortedItems).slice(0, 5);
+  const visibleItems = getFirstScreenNewsItems(sortedItems);
   const visibleSet = new Set(visibleItems);
-  const hiddenItems = [...directlyRelevantItems, ...backgroundItems].filter((item) => !visibleSet.has(item));
+  const hiddenItems = sortedItems.filter((item) => !visibleSet.has(item));
   elements.newsList.innerHTML = `
     ${renderNewsSummary(displayState, visibleItems.length, hiddenItems.length)}
     ${renderNewsGroupedItems(visibleItems)}
