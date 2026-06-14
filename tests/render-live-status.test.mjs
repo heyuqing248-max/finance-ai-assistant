@@ -114,6 +114,53 @@ test("render live status accepts fallback-only AI relay when primary key is miss
   assert.match(status.nextSteps.join(" "), /继续复测完整 AI 输出/);
 });
 
+test("render live status allows a longer timeout for analysis smoke", async () => {
+  const status = await buildRenderLiveStatus({
+    stableUrl: "https://finance-ai-assistant-web.onrender.com",
+    expectedAppVersion: 115,
+    timeoutMs: 1,
+    analysisTimeoutMs: 50,
+    fetchImpl: async (url, options = {}) => {
+      const parsed = new URL(url);
+      if (parsed.pathname === "/api/analysis") {
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(resolve, 10);
+          options.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            const error = new Error("aborted");
+            error.name = "AbortError";
+            reject(error);
+          });
+        });
+        return response(200, {
+          analysisMode: "real-provider",
+          analysisService: { mode: "real-provider", model: "test-model" },
+          factorBreakdown: [],
+          scenarioAnalysis: { cases: [] },
+        });
+      }
+      return createFetch({
+        "/": response(200, '<script src="./app.js?v=115"></script>'),
+        ...healthyBaseRoutes,
+        "/api/ai-services/provider-adapter": response(200, {
+          providerAdapter: {
+            status: "ready-for-local-real-model",
+            runtimeMode: "render-smoke",
+            configured: true,
+            networkEnabled: true,
+            canCallLiveModel: true,
+            fallbackModelProviders: [],
+          },
+        }),
+      })(url);
+    },
+  });
+
+  assert.equal(status.endpoints.analysisMsft.ok, true);
+  assert.equal(status.analysis.fullAiOutputReady, true);
+  assert.equal(status.ok, true);
+});
+
 test("render live status blocks when all AI relay keys are missing", async () => {
   const status = await buildRenderLiveStatus({
     stableUrl: "https://finance-ai-assistant-web.onrender.com",

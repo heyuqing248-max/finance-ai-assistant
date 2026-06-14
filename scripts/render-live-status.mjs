@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const DEFAULT_RENDER_URL = "https://finance-ai-assistant-web.onrender.com";
 const DEFAULT_INDEX_HTML_URL = new URL("../index.html", import.meta.url);
 const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_ANALYSIS_TIMEOUT_MS = 30000;
 
 function normalizeBaseUrl(value) {
   const raw = String(value || "").trim();
@@ -220,6 +221,7 @@ export async function buildRenderLiveStatus(options = {}) {
   );
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const timeoutMs = parseNumber(options.timeoutMs, DEFAULT_TIMEOUT_MS);
+  const analysisTimeoutMs = parseNumber(options.analysisTimeoutMs, DEFAULT_ANALYSIS_TIMEOUT_MS);
   const expectedAppVersion =
     options.expectedAppVersion === undefined
       ? readExpectedAppVersion(options)
@@ -233,7 +235,7 @@ export async function buildRenderLiveStatus(options = {}) {
       fetchWithTimeout(fetchImpl, buildUrl(stableUrl, "/api/project/progress"), { timeoutMs }),
       fetchWithTimeout(fetchImpl, buildUrl(stableUrl, "/api/ai-services/provider-adapter"), { timeoutMs }),
       fetchWithTimeout(fetchImpl, buildUrl(stableUrl, "/api/analysis?symbol=MSFT&riskProfile=balanced"), {
-        timeoutMs,
+        timeoutMs: analysisTimeoutMs,
       }),
     ]);
 
@@ -294,6 +296,8 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
   return {
     stableUrl: args.get("url") || env.FINANCE_AI_STABLE_PREVIEW_URL || DEFAULT_RENDER_URL,
     timeoutMs: args.get("timeout-ms") || env.FINANCE_AI_RENDER_LIVE_STATUS_TIMEOUT_MS,
+    analysisTimeoutMs:
+      args.get("analysis-timeout-ms") || env.FINANCE_AI_RENDER_LIVE_STATUS_ANALYSIS_TIMEOUT_MS,
   };
 }
 
