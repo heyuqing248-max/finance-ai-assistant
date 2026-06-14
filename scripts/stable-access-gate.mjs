@@ -2,7 +2,7 @@
 
 import { buildRenderDeployReadiness } from "./render-deploy-readiness.mjs";
 import { summarizePublicPreviewStatus } from "./public-preview-status.mjs";
-import { runStableHostingPreflight } from "./stable-hosting-preflight.mjs";
+import { defaultStablePreviewUrl, runStableHostingPreflight } from "./stable-hosting-preflight.mjs";
 
 function normalizeUrl(value = "") {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -66,7 +66,9 @@ function chooseRecommendedAccess({ fixedAccess, temporaryAccess, localFallback }
 }
 
 export async function buildStableAccessGate(options = {}) {
-  const stableUrl = normalizeUrl(options.stableUrl || process.env.FINANCE_AI_STABLE_PREVIEW_URL || "");
+  const stableUrl = normalizeUrl(
+    options.stableUrl ?? process.env.FINANCE_AI_STABLE_PREVIEW_URL ?? defaultStablePreviewUrl,
+  );
   const status = options.status || (options.statusReader || summarizePublicPreviewStatus)(options.statusOptions || {});
   const temporaryAccess = buildTemporaryAccess(status);
   const renderReadiness =
@@ -157,7 +159,7 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
     if (inlineValue === undefined) index += 1;
   }
   return {
-    stableUrl: args.get("url") || env.FINANCE_AI_STABLE_PREVIEW_URL || "",
+    stableUrl: args.get("url") || env.FINANCE_AI_STABLE_PREVIEW_URL || defaultStablePreviewUrl,
   };
 }
 

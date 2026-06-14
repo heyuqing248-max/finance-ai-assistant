@@ -12,6 +12,8 @@ services:
         value: production
       - key: FINANCE_AI_PUBLIC_HOST
         value: 0.0.0.0
+      - key: FINANCE_AI_STABLE_PUBLIC_URL
+        value: https://finance-ai-assistant-web.onrender.com
       - key: FINANCE_AI_MARKET_DATA_PROVIDER
         value: multi-free
       - key: FINANCE_AI_MARKET_DATA_ALLOW_NETWORK

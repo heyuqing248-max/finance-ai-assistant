@@ -1021,10 +1021,14 @@ function buildSafetyRepairStructuredAnalysisPrompt(input = {}, config) {
 
 function buildMetricsRepairStructuredAnalysisPrompt(input = {}, config) {
   const stock = input.stock || {};
+  const sourceRefs = sanitizeSourceRefs(input.sourceContext).slice(0, 5);
+  const macroContext = sanitizeMacroContext(input.macroContext);
   const payload = {
     stock: `${sanitizeText(stock.name, 80)} ${sanitizeText(stock.code, 30)}`,
     market: sanitizeText(stock.market, 20),
     riskProfile: sanitizeText(input.riskProfile || "balanced", 40),
+    sourceRefs,
+    macroSummary: macroContext?.summary || "宏观数据不足，请降低置信度。",
     requiredJsonShape: {
       upsideProbability: 55,
       downsideProbability: 45,
@@ -1045,7 +1049,11 @@ function buildMetricsRepairStructuredAnalysisPrompt(input = {}, config) {
       ],
       scenarioAnalysis: {
         horizon: "1-3个月",
-        cases: [{ key: "base", label: "基准", probability: 55, summary: "一句中文摘要" }],
+        cases: [
+          { key: "bull", label: "乐观情景", probability: 25, summary: "一句中文摘要" },
+          { key: "base", label: "基准情景", probability: 50, summary: "一句中文摘要" },
+          { key: "bear", label: "谨慎情景", probability: 25, summary: "一句中文摘要" },
+        ],
         disclaimer: "模型参考概率仅供研究参考，不构成投资建议或收益承诺。",
       },
       tradePlan: {
@@ -1062,7 +1070,79 @@ function buildMetricsRepairStructuredAnalysisPrompt(input = {}, config) {
     {
       role: "system",
       content:
-        "上一次输出缺少核心量化指标或结构。只输出纯 JSON 对象，不要 Markdown，不要解释。必须包含 requiredJsonShape 的全部字段和嵌套结构；所有概率和分数必须是 0-100 的整数。禁止保证收益、稳赚、无风险、必须买入、必须卖出。",
+        "上一次输出缺少核心量化指标或结构。只输出纯 JSON 对象，不要 Markdown，不要解释。必须保留 requiredJsonShape 的全部字段和嵌套结构，必须包含 6 个 factorBreakdown 项和 bull/base/bear 3 个 scenario cases；可根据 sourceRefs 和 macroSummary 调整数值与摘要。所有概率和分数必须是 0-100 的整数。禁止保证收益、稳赚、无风险、必须买入、必须卖出。",
+    },
+    {
+      role: "user",
+      content: JSON.stringify(payload),
+    },
+  ];
+}
+
+function buildForcedMetricsRepairStructuredAnalysisPrompt(input = {}, config) {
+  const stock = input.stock || {};
+  const sourceRefs = sanitizeSourceRefs(input.sourceContext).slice(0, 3);
+  const macroContext = sanitizeMacroContext(input.macroContext);
+  const payload = {
+    instruction:
+      "Return exactly one JSON object. Do not omit any key. Do not add markdown. Use Chinese strings. Adjust numeric values only when the provided evidence supports it; otherwise keep confidence conservative.",
+    evidence: {
+      stock: {
+        code: sanitizeText(stock.code, 30),
+        name: sanitizeText(stock.name, 80),
+        market: sanitizeText(stock.market, 20),
+        latestPrice: Number(stock.samplePrice) || null,
+      },
+      riskProfile: sanitizeText(input.riskProfile || "balanced", 40),
+      sourceRefs,
+      macroSummary: macroContext?.summary || "宏观数据不足",
+    },
+    requiredExactShape: {
+      upsideProbability: 52,
+      downsideProbability: 48,
+      sentimentScore: 50,
+      valuationScore: 50,
+      technicalScore: 50,
+      confidenceScore: 42,
+      actionReference: "模型参考：保持观察，等待更多真实证据确认。",
+      reasons: ["基于已提供证据的中文理由。"],
+      risks: ["数据覆盖不足时需要降低置信度。"],
+      factorBreakdown: [
+        { key: "macro", label: "宏观", score: 50, summary: "宏观证据摘要。" },
+        { key: "industry", label: "行业", score: 50, summary: "行业证据摘要。" },
+        { key: "fundamental", label: "基本面", score: 50, summary: "基本面证据摘要。" },
+        { key: "valuation", label: "估值", score: 50, summary: "估值证据摘要。" },
+        { key: "technical", label: "技术面", score: 50, summary: "技术面证据摘要。" },
+        { key: "sentiment", label: "情绪", score: 50, summary: "情绪证据摘要。" },
+      ],
+      scenarioAnalysis: {
+        horizon: "1-3个月",
+        cases: [
+          { key: "bull", label: "乐观情景", probability: 25, summary: "乐观情景摘要。" },
+          { key: "base", label: "基准情景", probability: 50, summary: "基准情景摘要。" },
+          { key: "bear", label: "谨慎情景", probability: 25, summary: "谨慎情景摘要。" },
+        ],
+        disclaimer: "模型参考概率仅供研究参考，不构成投资建议或收益承诺。",
+      },
+      tradePlan: {
+        summary: "仅作研究观察，不构成买卖建议。",
+        disclaimer: "不构成投资建议、交易指令或收益承诺。",
+      },
+      analysisProcess: {
+        version: "real-model-analysis-v1",
+        mode: "forced-metric-shape-repair",
+        confidence: 42,
+      },
+      warnings: ["来源不足或过旧时需要降低置信度。"],
+      disclaimer: "模型参考概率仅供研究参考，不构成投资建议、交易指令或收益承诺。",
+    },
+  };
+
+  return [
+    {
+      role: "system",
+      content:
+        "You repair incomplete finance-analysis JSON. Output only valid JSON. The output must contain every key from requiredExactShape, including all 6 factorBreakdown rows and all 3 scenarioAnalysis cases. No markdown. No code fences. No guarantee language. No must-buy or must-sell language.",
     },
     {
       role: "user",
@@ -1558,6 +1638,7 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
   const ultraCompact = options.ultraCompact === true;
   const safetyRepair = options.safetyRepair === true;
   const metricRepair = options.metricRepair === true;
+  const forcedMetricShapeRepair = options.forcedMetricShapeRepair === true;
   const retryCount = Number(options.retryCount || 0);
   try {
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
@@ -1570,6 +1651,8 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
         model: config.selectedModel,
         messages: safetyRepair
           ? buildSafetyRepairStructuredAnalysisPrompt(input, config)
+          : forcedMetricShapeRepair
+            ? buildForcedMetricsRepairStructuredAnalysisPrompt(input, config)
           : metricRepair
             ? buildMetricsRepairStructuredAnalysisPrompt(input, config)
             : ultraCompact
@@ -1641,6 +1724,7 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
           ultraCompactPrompt: ultraCompact,
           safetyRepairPrompt: safetyRepair,
           metricRepairPrompt: metricRepair,
+          forcedMetricShapeRepairPrompt: forcedMetricShapeRepair,
         },
       };
     } catch (validationError) {
@@ -1656,6 +1740,16 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
           metricRepair: true,
         });
       }
+      if (
+        validationError?.code === "REAL_AI_MODEL_MISSING_METRICS" &&
+        metricRepair &&
+        !forcedMetricShapeRepair
+      ) {
+        return callOpenAiCompatibleStructuredAnalysis(input, config, {
+          metricRepair: true,
+          forcedMetricShapeRepair: true,
+        });
+      }
       return {
         status: "provider-error",
         error: {
@@ -1663,8 +1757,9 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
           message: validationError?.message || "真实 AI 模型输出未通过校验；本次保持空白。",
           safetyRepairAttempted: safetyRepair,
           safetyRepairPassed: false,
-          metricRepairAttempted: metricRepair,
+          metricRepairAttempted: metricRepair || forcedMetricShapeRepair,
           metricRepairPassed: false,
+          forcedMetricShapeRepairAttempted: forcedMetricShapeRepair,
         },
       };
     }
@@ -1704,8 +1799,11 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
   const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
   const safetyRepair = options.safetyRepair === true;
   const metricRepair = options.metricRepair === true;
+  const forcedMetricShapeRepair = options.forcedMetricShapeRepair === true;
   const promptMessages = safetyRepair
     ? buildSafetyRepairStructuredAnalysisPrompt(input, config)
+    : forcedMetricShapeRepair
+      ? buildForcedMetricsRepairStructuredAnalysisPrompt(input, config)
     : metricRepair
       ? buildMetricsRepairStructuredAnalysisPrompt(input, config)
     : buildStructuredAnalysisPrompt(input, config);
@@ -1766,6 +1864,7 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
           apiStyle: "responses",
           safetyRepairPrompt: safetyRepair,
           metricRepairPrompt: metricRepair,
+          forcedMetricShapeRepairPrompt: forcedMetricShapeRepair,
         },
       };
     } catch (validationError) {
@@ -1775,6 +1874,16 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
       if (validationError?.code === "REAL_AI_MODEL_MISSING_METRICS" && !metricRepair) {
         return callOpenAiResponsesStructuredAnalysis(input, config, { metricRepair: true });
       }
+      if (
+        validationError?.code === "REAL_AI_MODEL_MISSING_METRICS" &&
+        metricRepair &&
+        !forcedMetricShapeRepair
+      ) {
+        return callOpenAiResponsesStructuredAnalysis(input, config, {
+          metricRepair: true,
+          forcedMetricShapeRepair: true,
+        });
+      }
       return {
         status: "provider-error",
         error: {
@@ -1782,8 +1891,9 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
           message: validationError?.message || "真实 AI 模型 Responses API 输出未通过校验；本次保持空白。",
           safetyRepairAttempted: safetyRepair,
           safetyRepairPassed: false,
-          metricRepairAttempted: metricRepair,
+          metricRepairAttempted: metricRepair || forcedMetricShapeRepair,
           metricRepairPassed: false,
+          forcedMetricShapeRepairAttempted: forcedMetricShapeRepair,
         },
       };
     }

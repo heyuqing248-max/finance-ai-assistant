@@ -127,6 +127,84 @@ test("AI provider retries missing metric output with completion repair prompt", 
   }
 });
 
+test("AI provider performs forced metric-shape repair when normal repair is still incomplete", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body || "{}");
+    requests.push({ url, body });
+    if (requests.length === 1) {
+      return jsonResponse(
+        chatPayload({
+          actionReference: "保持观察。",
+          reasons: ["第一次故意缺少核心指标。"],
+          risks: ["仅供测试。"],
+          disclaimer: "仅供研究参考。",
+        }),
+      );
+    }
+    if (requests.length === 2) {
+      return jsonResponse(
+        chatPayload({
+          upsideProbability: 54,
+          downsideProbability: 46,
+          sentimentScore: 50,
+          valuationScore: 51,
+          technicalScore: 49,
+          confidenceScore: 45,
+          actionReference: "普通修复仍缺少情景结构。",
+          reasons: ["仍缺少 scenarioAnalysis。"],
+          risks: ["仅供测试。"],
+          factorBreakdown: [{ key: "macro", label: "宏观", score: 50, summary: "宏观中性。" }],
+          disclaimer: "仅供研究参考。",
+        }),
+      );
+    }
+    return jsonResponse(
+      chatPayload(
+        validAnalysis({
+          actionReference: "强制结构修复后保持观察。",
+          factorBreakdown: [
+            { key: "macro", label: "宏观", score: 50, summary: "宏观中性。" },
+            { key: "industry", label: "行业", score: 51, summary: "行业中性。" },
+            { key: "fundamental", label: "基本面", score: 52, summary: "基本面中性。" },
+            { key: "valuation", label: "估值", score: 53, summary: "估值中性。" },
+            { key: "technical", label: "技术面", score: 49, summary: "技术面中性。" },
+            { key: "sentiment", label: "情绪", score: 50, summary: "情绪中性。" },
+          ],
+          scenarioAnalysis: {
+            horizon: "1-3个月",
+            cases: [
+              { key: "bull", label: "乐观情景", probability: 25, summary: "乐观。" },
+              { key: "base", label: "基准情景", probability: 50, summary: "基准。" },
+              { key: "bear", label: "谨慎情景", probability: 25, summary: "谨慎。" },
+            ],
+            disclaimer: "仅供研究参考。",
+          },
+        }),
+      ),
+    );
+  };
+
+  try {
+    const adapter = createAiProviderAdapter({ env: adapterEnv() });
+    const result = await adapter.generateStructuredAnalysis(input);
+
+    assert.equal(result.status, "ok");
+    assert.equal(requests.length, 3);
+    assert.match(requests[2].body.messages[0].content, /requiredExactShape/);
+    assert.equal(result.provider.metricRepairPrompt, true);
+    assert.equal(result.provider.forcedMetricShapeRepairPrompt, true);
+    assert.equal(result.providerRelay.attempts[0].validationStatus, "校验通过");
+    assert.equal(result.providerRelay.attempts[0].metricRepairAttempted, true);
+    assert.equal(result.providerRelay.attempts[0].metricRepairStatus, "repair-passed");
+    assert.equal(result.analysis.factorBreakdown.length, 6);
+    assert.equal(result.analysis.scenarioAnalysis.cases.length, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("AI provider relay attempts expose final reason, cooldown, and recovery path", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];

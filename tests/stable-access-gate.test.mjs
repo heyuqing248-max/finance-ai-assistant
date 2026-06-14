@@ -69,7 +69,9 @@ test("stable access gate does not treat healthy temporary tunnel as stable exter
   assert.equal(result.temporaryAccess.acceptedForStableExternalUse, false);
   assert.equal(result.localFallback.ok, true);
   assert.equal(result.temporaryAccess.standby[0].healthy, true);
-  assert.match(result.blockers.join(" "), /固定线上测试 URL/);
+  assert.equal(result.fixedAccess.configured, true);
+  assert.equal(result.fixedAccess.url, "https://finance-ai-assistant-web.onrender.com");
+  assert.match(result.blockers.join(" "), /固定 URL 尚未通过/);
   assert.match(result.blockers.join(" "), /临时 lhr\.life/);
   assert.doesNotMatch(JSON.stringify(result), /sk-proj|sk-or-v1|gsk_|AQ\./);
 });

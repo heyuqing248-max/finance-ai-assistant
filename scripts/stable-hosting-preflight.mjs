@@ -9,6 +9,7 @@ import {
 
 const DEFAULT_RENDER_YAML_URL = new URL("../render.yaml", import.meta.url);
 const DEFAULT_PACKAGE_JSON_URL = new URL("../package.json", import.meta.url);
+export const defaultStablePreviewUrl = "https://finance-ai-assistant-web.onrender.com";
 
 export const requiredStableHostingEndpoints = defaultPublicPreviewChecks.map((check) => check.path);
 
@@ -232,7 +233,7 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
     if (inlineValue === undefined) index += 1;
   }
   return {
-    stableUrl: args.get("url") || env.FINANCE_AI_STABLE_PREVIEW_URL || "",
+    stableUrl: args.get("url") || env.FINANCE_AI_STABLE_PREVIEW_URL || defaultStablePreviewUrl,
     durationMs: args.get("duration-ms") || env.FINANCE_AI_STABLE_PREVIEW_MONITOR_DURATION_MS || "180000",
     intervalMs: args.get("interval-ms") || env.FINANCE_AI_STABLE_PREVIEW_MONITOR_INTERVAL_MS || "15000",
     timeoutMs: args.get("timeout-ms") || env.FINANCE_AI_STABLE_PREVIEW_MONITOR_TIMEOUT_MS || "15000",
