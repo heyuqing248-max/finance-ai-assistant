@@ -353,6 +353,49 @@ test("AI provider relay can use a configured fallback when primary key is missin
   }
 });
 
+test("AI provider retries chat-compatible 400 without response_format", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body || "{}");
+    requests.push({ url, body });
+    if (requests.length === 1) {
+      assert.deepEqual(body.response_format, { type: "json_object" });
+      return jsonResponse(
+        {
+          error: {
+            code: "bad_request",
+            message: "response_format is not supported for this model.",
+          },
+        },
+        400,
+      );
+    }
+    assert.equal(body.response_format, undefined);
+    assert.equal(body.model, "openai/gpt-oss-120b");
+    return jsonResponse(chatPayload(validAnalysis({ actionReference: "去掉 JSON mode 后生成完整分析。" })));
+  };
+
+  try {
+    const adapter = createAiProviderAdapter({
+      env: adapterEnv({
+        FINANCE_AI_MODEL_ID: "openai/gpt-oss-120b",
+        FINANCE_AI_MODEL_BASE_URL: "https://api.groq.com/openai/v1",
+      }),
+    });
+
+    const result = await adapter.generateStructuredAnalysis(input);
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.providerRelay.used, "openai/gpt-oss-120b");
+    assert.equal(result.provider.responseFormatOmitted, true);
+    assert.equal(requests.length, 2);
+    assert.match(requests[1].body.messages[0].content, /只输出一个 JSON 对象|只输出纯 JSON 对象/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("AI provider expands alternate fallback model ids for same-key relay", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];

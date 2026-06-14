@@ -1201,30 +1201,37 @@ function extractJsonObject(text = "") {
 
 async function providerHttpError(response, label = "真实 AI 模型接口") {
   let providerCode = "";
+  let providerMessage = "";
   try {
     const payload = await response.json();
     providerCode = sanitizeText(payload?.error?.code || payload?.error?.type || "", 80);
+    providerMessage = sanitizeText(payload?.error?.message || payload?.message || "", 180);
   } catch {
     providerCode = "";
+    providerMessage = "";
   }
+  const providerDetail = providerMessage ? `：${providerMessage}` : "";
   if (providerCode === "insufficient_quota") {
     return {
       code: "REAL_AI_MODEL_INSUFFICIENT_QUOTA",
-      message: `${label} 返回 429：当前 OpenAI 项目额度或账单不足；本次保持空白。`,
+      message: `${label} 返回 429${providerDetail}；当前 OpenAI 项目额度或账单不足；本次保持空白。`,
       providerCode,
+      providerMessage,
     };
   }
   if (response.status === 429) {
     return {
       code: "REAL_AI_MODEL_RATE_LIMIT_OR_QUOTA",
-      message: `${label} 返回 429：当前模型 provider 额度或速率限制触发；本次保持空白。`,
+      message: `${label} 返回 429${providerDetail}；当前模型 provider 额度或速率限制触发；本次保持空白。`,
       providerCode,
+      providerMessage,
     };
   }
   return {
     code: "REAL_AI_MODEL_HTTP_ERROR",
-    message: `${label} 返回 ${response.status}；本次保持空白。`,
+    message: `${label} 返回 ${response.status}${providerDetail}；本次保持空白。`,
     providerCode,
+    providerMessage,
   };
 }
 
@@ -1671,6 +1678,7 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
   const metricRepair = options.metricRepair === true;
   const forcedMetricShapeRepair = options.forcedMetricShapeRepair === true;
   const retryCount = Number(options.retryCount || 0);
+  const omitResponseFormat = options.omitResponseFormat === true;
   try {
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: "POST",
@@ -1700,7 +1708,7 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
         ...(isGeminiOpenAiCompatibleConfig(config)
           ? { reasoning_effort: geminiReasoningEffort(config) }
           : {}),
-        ...(isGeminiOpenAiCompatibleConfig(config)
+        ...(isGeminiOpenAiCompatibleConfig(config) || omitResponseFormat
           ? {}
           : { response_format: { type: "json_object" } }),
       }),
@@ -1716,6 +1724,13 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
         return callOpenAiCompatibleStructuredAnalysis(input, config, {
           compact: true,
           ultraCompact: true,
+        });
+      }
+      if (!isGeminiOpenAiCompatibleConfig(config) && response.status === 400 && !omitResponseFormat) {
+        return callOpenAiCompatibleStructuredAnalysis(input, config, {
+          ...options,
+          omitResponseFormat: true,
+          compact: true,
         });
       }
       return {
@@ -1753,6 +1768,7 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
           endpoint: `${config.baseUrl}/chat/completions`,
           compactPrompt: compact,
           ultraCompactPrompt: ultraCompact,
+          responseFormatOmitted: omitResponseFormat,
           safetyRepairPrompt: safetyRepair,
           metricRepairPrompt: metricRepair,
           forcedMetricShapeRepairPrompt: forcedMetricShapeRepair,
