@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v119";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v120";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、460 条自动化回归目标",
+    "后端 API、生产门禁规划、461 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -9350,6 +9350,11 @@ function getMacroFreshnessValue(macroContext = null) {
   ]);
 }
 
+function buildFreshnessItem(label, freshness, ready, fallbackReadyText = "更新时间待确认") {
+  if (freshness) return `${label}更新：${freshness}`;
+  return `${label}更新：${ready ? fallbackReadyText : "待真实数据"}`;
+}
+
 function renderStockCoverageNote(stock = state.selectedStock, analysisState = null) {
   if (!elements.stockCoverageNote || !stock) return;
   const searchSourceStatus = getStockSearchSourceStatus(stock);
@@ -9370,9 +9375,10 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
     isRealCoverageValue(stock.inputCoverage?.filings) ||
     hasRealSourceRef(stock, "filing");
   const macroReady = isRealCoverageValue(stock.inputCoverage?.macro) || hasRealSourceRef(stock, "macro");
-  const quoteFreshness =
-    formatDataFreshnessTime(stock.source?.updatedAt) ||
-    formatDataFreshnessTime(stock.historySource?.updatedAt);
+  const quoteFreshness = quoteReady
+    ? formatDataFreshnessTime(stock.source?.updatedAt) ||
+      formatDataFreshnessTime(stock.historySource?.updatedAt)
+    : "";
   const newsFreshness = formatDataFreshnessTime(newsCoverage.newsLastUpdated || newsCoverage.lastUpdated);
   const filingsFreshness = formatDataFreshnessTime(newsCoverage.filingsLastUpdated);
   const statementFreshness = formatDataFreshnessTime(newsCoverage.statementLastUpdated);
@@ -9411,11 +9417,11 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
     { label: "AI", value: aiValue, tone: analysisReady || realAiRuntimeReady ? "ready" : "limited" },
   ];
   const freshnessItems = [
-    quoteFreshness ? `行情更新 ${quoteFreshness}` : "",
-    newsFreshness ? `新闻更新 ${newsFreshness}` : "",
-    filingsFreshness ? `公告更新 ${filingsFreshness}` : "",
-    statementFreshness ? `公开言论更新 ${statementFreshness}` : "",
-    macroFreshness ? `宏观更新 ${macroFreshness}` : "",
+    buildFreshnessItem("行情", quoteFreshness, quoteReady),
+    buildFreshnessItem("新闻", newsFreshness, newsReady),
+    buildFreshnessItem("公告", filingsFreshness, filingsReady),
+    buildFreshnessItem("宏观", macroFreshness, macroReady, "最新可见周期待确认"),
+    statementFreshness ? `公开言论更新：${statementFreshness}` : "",
   ].filter(Boolean);
   const summary =
     providerIssue

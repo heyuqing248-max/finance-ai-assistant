@@ -483,6 +483,10 @@ select:focus {
 
 .coverage-freshness-row span {
   width: fit-content;
+  padding: 2px 7px;
+  border: 1px solid rgba(22, 93, 78, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
 }
 
 .probability-layout {
