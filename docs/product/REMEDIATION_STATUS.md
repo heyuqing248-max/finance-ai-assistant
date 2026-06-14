@@ -39,7 +39,9 @@ Note: real keys must only be stored in Render Dashboard Value fields, not in the
 | --- | --- | --- | --- |
 | P0 | 固定公开网址稳定可用 | 已验证 / Verified | `https://finance-ai-assistant-web.onrender.com` 通过 180 秒稳定门禁；`externalUseReady=true`、`continuousHealthPassed=true`、`lastFailure=null`。 |
 | P0 | 临时链接失效后的备用访问 | 已建立 / Established | 固定 Render 为主入口；`lhr.life` 和本机地址只作为备用说明。 |
-| P1 | 完整真实 AI 输出 | 已跑通但需持续监控 / Proven but not continuously guaranteed | v123 线上 MSFT 返回 `analysisMode=real-provider`，成功模型 `openai/gpt-oss-120b`；但主模型和部分备用模型仍可能额度不足或冷却。 |
+| P1 | 完整真实 AI 输出 | 已跑通但需持续监控 / Proven but not continuously guaranteed | v123 线上 MSFT 曾返回 `analysisMode=real-provider`，成功模型 `openai/gpt-oss-120b`；2026-06-15 快速稳定门禁显示当前仍会因 `REAL_AI_MODEL_INVALID_JSON` 和 provider 冷却降级规则参考。 |
+| P1 | 完整真实 AI 稳定性验收 | 新增门禁 / Gate added | `npm run gate:full-ai -- --attempts 3 --interval-ms 10000 --analysis-timeout-ms 60000` 会连续检查完整 AI；任一轮降级规则参考即失败。 |
+| P1 | Responses API 非 JSON 修复 | 已增强 / Improved | Responses API 路径现在和 chat 路径一样，遇到不可解析 JSON 会使用 compact、ultra-compact 结构化提示重试。 |
 | P1 | 429/额度不足时自动接力 | 已实现 / Implemented | AI relay 会按主模型、Gemini、OpenRouter、Groq、额外 OpenRouter/Groq 兼容模型尝试，并记录失败类型、冷却和下一步。 |
 | P1 | AI 失败信息过技术化 | 已改善 / Improved | 首页显示用户语言；技术码折叠到诊断详情。 |
 | P1 | 新闻相关性和空状态 | 已改善，需继续抽检 / Improved, needs spot checks | 新闻先按直接相关性、重要性排序，再去重折叠；空状态显示来源、返回条数、过滤条数和更新时间。 |
@@ -65,6 +67,7 @@ Note: real keys must only be stored in Render Dashboard Value fields, not in the
 
 ```bash
 node scripts/render-live-status.mjs --analysis-timeout-ms 60000
+npm run gate:full-ai -- --attempts 3 --interval-ms 10000 --analysis-timeout-ms 60000
 node scripts/stable-hosting-preflight.mjs --url https://finance-ai-assistant-web.onrender.com --duration-ms 180000 --interval-ms 30000 --timeout-ms 25000
 node --test tests/ai-provider-adapter.test.mjs
 node --test tests/stable-hosting-preflight.test.mjs tests/render-live-status.test.mjs

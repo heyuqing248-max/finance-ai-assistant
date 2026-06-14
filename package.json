@@ -19,6 +19,7 @@
     "status:render-live": "node scripts/render-live-status.mjs",
     "render:env-template": "node scripts/render-dashboard-env-template.mjs",
     "render:secret-audit": "node scripts/render-deploy-readiness.mjs --include-runtime-files",
+    "gate:full-ai": "node scripts/render-full-ai-stability-gate.mjs",
     "gate:stable-access": "node scripts/stable-access-gate.mjs",
     "status:public-preview": "node scripts/public-preview-status.mjs",
     "access:public-preview": "node scripts/public-preview-access-report.mjs",

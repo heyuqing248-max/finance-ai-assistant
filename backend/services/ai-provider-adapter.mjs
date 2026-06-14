@@ -1868,6 +1868,8 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
 async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+  const compact = options.compact === true;
+  const ultraCompact = options.ultraCompact === true;
   const safetyRepair = options.safetyRepair === true;
   const metricRepair = options.metricRepair === true;
   const forcedMetricShapeRepair = options.forcedMetricShapeRepair === true;
@@ -1877,6 +1879,10 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
       ? buildForcedMetricsRepairStructuredAnalysisPrompt(input, config)
     : metricRepair
       ? buildMetricsRepairStructuredAnalysisPrompt(input, config)
+    : ultraCompact
+      ? buildUltraCompactStructuredAnalysisPrompt(input, config)
+    : compact
+      ? buildCompactStructuredAnalysisPrompt(input, config)
     : buildStructuredAnalysisPrompt(input, config);
   try {
     const response = await fetch(`${config.baseUrl}/responses`, {
@@ -1891,7 +1897,11 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
           role: message.role,
           content: message.content,
         })),
-        max_output_tokens: config.maxTokensPerRequest,
+        max_output_tokens: ultraCompact
+          ? Math.min(config.maxTokensPerRequest, 512)
+          : compact
+            ? Math.min(config.maxTokensPerRequest, 900)
+            : config.maxTokensPerRequest,
         text: {
           format: {
             type: "json_schema",
@@ -1915,6 +1925,19 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
     const payload = await response.json();
     const parsed = extractJsonObject(extractResponsesText(payload));
     if (!parsed) {
+      if (!compact) {
+        return callOpenAiResponsesStructuredAnalysis(input, config, {
+          ...options,
+          compact: true,
+        });
+      }
+      if (!ultraCompact) {
+        return callOpenAiResponsesStructuredAnalysis(input, config, {
+          ...options,
+          compact: true,
+          ultraCompact: true,
+        });
+      }
       return {
         status: "provider-error",
         error: {
@@ -1933,6 +1956,8 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
           model: config.selectedModel,
           endpoint: `${config.baseUrl}/responses`,
           apiStyle: "responses",
+          compactPrompt: compact,
+          ultraCompactPrompt: ultraCompact,
           safetyRepairPrompt: safetyRepair,
           metricRepairPrompt: metricRepair,
           forcedMetricShapeRepairPrompt: forcedMetricShapeRepair,

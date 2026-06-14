@@ -430,6 +430,45 @@ test("AI provider retries invalid chat JSON with compact prompts", async () => {
   }
 });
 
+test("AI provider retries invalid Responses JSON with compact prompts", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body || "{}");
+    requests.push({ url, body });
+    if (requests.length < 3) {
+      return jsonResponse({ output_text: "not json" });
+    }
+    return jsonResponse({ output_text: JSON.stringify(validAnalysis({ actionReference: "Responses 压缩 JSON prompt 后生成完整分析。" })) });
+  };
+
+  try {
+    const adapter = createAiProviderAdapter({
+      env: adapterEnv({
+        FINANCE_AI_MODEL_ID: "gpt-5.5",
+        FINANCE_AI_MODEL_BASE_URL: "https://api.openai.com/v1",
+        FINANCE_AI_MODEL_API_STYLE: "responses",
+      }),
+    });
+
+    const result = await adapter.generateStructuredAnalysis(input);
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.providerRelay.used, "gpt-5.5");
+    assert.equal(result.provider.apiStyle, "responses");
+    assert.equal(result.provider.compactPrompt, true);
+    assert.equal(result.provider.ultraCompactPrompt, true);
+    assert.equal(requests.length, 3);
+    assert.equal(requests[0].body.max_output_tokens, 1400);
+    assert.equal(requests[1].body.max_output_tokens, 900);
+    assert.equal(requests[2].body.max_output_tokens, 512);
+    assert.match(requests[1].body.input[0].content, /只输出一个 JSON 对象/);
+    assert.match(requests[2].body.input[0].content, /只输出纯 JSON 对象/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("AI provider expands alternate fallback model ids for same-key relay", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
