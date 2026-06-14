@@ -352,3 +352,54 @@ test("AI provider relay can use a configured fallback when primary key is missin
     globalThis.fetch = originalFetch;
   }
 });
+
+test("AI provider expands alternate fallback model ids for same-key relay", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body || "{}");
+    requests.push({ url, model: body.model });
+    if (body.model === "primary-test-model" || body.model === "llama-3.1-8b-instant") {
+      return jsonResponse({ error: { code: "rate_limit_exceeded" } }, 429);
+    }
+    assert.equal(body.model, "openai/gpt-oss-120b");
+    return jsonResponse(chatPayload(validAnalysis({ actionReference: "同 key 备用模型已生成完整分析。" })));
+  };
+
+  try {
+    const adapter = createAiProviderAdapter({
+      env: adapterEnv({
+        FINANCE_AI_MODEL_FALLBACK3_PROVIDER: "openai-compatible",
+        FINANCE_AI_MODEL_FALLBACK3_API_KEY: "groq-test-key",
+        FINANCE_AI_MODEL_FALLBACK3_ID: "llama-3.1-8b-instant",
+        FINANCE_AI_MODEL_FALLBACK3_ALT_IDS: "openai/gpt-oss-120b",
+        FINANCE_AI_MODEL_FALLBACK3_BASE_URL: "https://api.groq.com/openai/v1",
+        FINANCE_AI_MODEL_FALLBACK3_API_STYLE: "chat-completions",
+        FINANCE_AI_MODEL_FALLBACK3_ALLOW_NETWORK: "true",
+      }),
+    });
+
+    assert.ok(
+      adapter.fallbackModelProviders.some((provider) => provider.modelId === "openai/gpt-oss-120b"),
+    );
+
+    const result = await adapter.generateStructuredAnalysis(input);
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.providerRelay.used, "openai/gpt-oss-120b");
+    assert.deepEqual(
+      result.providerRelay.attempts.map((attempt) => [attempt.model, attempt.finalReason]),
+      [
+        ["primary-test-model", "额度或速率受限"],
+        ["llama-3.1-8b-instant", "额度或速率受限"],
+        ["openai/gpt-oss-120b", "完整 AI 分析已生成"],
+      ],
+    );
+    assert.deepEqual(
+      requests.map((request) => request.model),
+      ["primary-test-model", "llama-3.1-8b-instant", "openai/gpt-oss-120b"],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

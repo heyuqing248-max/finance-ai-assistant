@@ -44,6 +44,7 @@ export const requiredRuntimeEnvVars = {
   FINANCE_AI_MODEL_FALLBACK2_API_STYLE: "chat-completions",
   FINANCE_AI_MODEL_FALLBACK2_ALLOW_NETWORK: "true",
   FINANCE_AI_MODEL_FALLBACK3_ID: "llama-3.1-8b-instant",
+  FINANCE_AI_MODEL_FALLBACK3_ALT_IDS: "openai/gpt-oss-120b",
   FINANCE_AI_MODEL_FALLBACK3_BASE_URL: "https://api.groq.com/openai/v1",
   FINANCE_AI_MODEL_FALLBACK3_API_STYLE: "chat-completions",
   FINANCE_AI_MODEL_FALLBACK3_ALLOW_NETWORK: "true",

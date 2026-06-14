@@ -13,6 +13,31 @@ function hasEnvValue(env = {}, name) {
   return typeof env[name] === "string" && env[name].trim().length > 0;
 }
 
+function splitModelIds(value = "") {
+  return String(value || "")
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function expandFallbackProviderModels(provider = {}) {
+  if (!provider || typeof provider !== "object") return [];
+  const modelIds = [
+    provider.selectedModel,
+    ...splitModelIds(provider.alternateModelIds || ""),
+  ].filter(Boolean);
+  const uniqueModelIds = [...new Set(modelIds)];
+  if (!uniqueModelIds.length) return [provider];
+  return uniqueModelIds.map((modelId, index) => ({
+    ...provider,
+    selectedModel: modelId,
+    label: index === 0 ? provider.label : `${provider.label} · 轮换 ${index}`,
+    slot: index === 0 ? provider.slot : `${provider.slot}-alt${index}`,
+    configured: Boolean(provider.apiKey && modelId),
+    alternateOf: index === 0 ? "" : provider.selectedModel || "",
+  }));
+}
+
 function isGeminiOpenAiCompatibleConfig(config = {}) {
   return (
     String(config.baseUrl || "").includes("generativelanguage.googleapis.com") ||
@@ -59,6 +84,9 @@ function readConfig(env = {}) {
   const fallbackApiKey = hasEnvValue(env, "FINANCE_AI_MODEL_FALLBACK_API_KEY")
     ? env.FINANCE_AI_MODEL_FALLBACK_API_KEY.trim()
     : "";
+  const fallbackAlternateModelIds = hasEnvValue(env, "FINANCE_AI_MODEL_FALLBACK_ALT_IDS")
+    ? env.FINANCE_AI_MODEL_FALLBACK_ALT_IDS.trim()
+    : "";
   const fallbackConfigured = Boolean(fallbackApiKey && fallbackSelectedModel);
   const fallbackProvider = {
     slot: "fallback",
@@ -68,6 +96,7 @@ function readConfig(env = {}) {
     apiKey: fallbackApiKey,
     baseUrl: fallbackBaseUrl,
     apiStyle: fallbackApiStyle,
+    alternateModelIds: fallbackAlternateModelIds,
     configured: fallbackConfigured,
     supported: supportedProviderIds.includes(fallbackSelectedProvider),
     allowNetwork: env.FINANCE_AI_MODEL_FALLBACK_ALLOW_NETWORK === "true" || env.FINANCE_AI_MODEL_ALLOW_NETWORK === "true",
@@ -76,7 +105,7 @@ function readConfig(env = {}) {
     fallbackProvider,
     readAdditionalFallbackProvider(env, 2),
     readAdditionalFallbackProvider(env, 3),
-  ];
+  ].flatMap(expandFallbackProviderModels);
 
   return {
     selectedProvider,
@@ -148,6 +177,7 @@ function readAdditionalFallbackProvider(env = {}, index = 2) {
     ? env[`${prefix}_PROVIDER`].trim()
     : "openai-compatible";
   const selectedModel = hasEnvValue(env, `${prefix}_ID`) ? env[`${prefix}_ID`].trim() : "";
+  const alternateModelIds = hasEnvValue(env, `${prefix}_ALT_IDS`) ? env[`${prefix}_ALT_IDS`].trim() : "";
   const baseUrl = hasEnvValue(env, `${prefix}_BASE_URL`)
     ? env[`${prefix}_BASE_URL`].trim().replace(/\/+$/, "")
     : defaultOpenAiCompatibleBaseUrl;
@@ -162,6 +192,7 @@ function readAdditionalFallbackProvider(env = {}, index = 2) {
     label: `备用模型 ${index}`,
     selectedProvider,
     selectedModel,
+    alternateModelIds,
     apiKey,
     baseUrl,
     apiStyle,
