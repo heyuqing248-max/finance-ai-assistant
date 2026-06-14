@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v114";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v115";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、455 条自动化回归目标",
+    "后端 API、生产门禁规划、456 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -13841,7 +13841,7 @@ function getFirstScreenNewsItems(sortedItems = []) {
 function getLowCredibilityHint(news) {
   const score = Number(news?.sourceCredibilityScore);
   if (!Number.isFinite(score) || score <= 0 || score >= 70) return "";
-  return "来源可信度偏低，仅作辅助参考，不直接推动结论，需更多公告或权威来源确认。";
+  return `来源可信度偏低，仅作辅助参考；当前评分 ${score}/100 低于 70 分阈值，不直接推动结论，需更多公告或权威来源确认。`;
 }
 
 function renderNewsItem(news) {
@@ -13909,6 +13909,7 @@ function renderNewsSummary(newsState, visibleCount, hiddenCount) {
 }
 
 function renderNewsRequestDiagnostics(newsState = {}) {
+  const isLoading = newsState.status === "loading" || newsState.phase === "loading";
   const requestedSources = Array.isArray(newsState.requestedSources)
     ? newsState.requestedSources.filter((item) => typeof item === "string" && item.trim())
     : [];
@@ -13932,11 +13933,17 @@ function renderNewsRequestDiagnostics(newsState = {}) {
         .join(" / ")
     : "";
   const rows = [
-    requestedSources.length ? `已请求来源：${requestedSources.join("、")}` : "",
-    `返回条数：${returnedCount}`,
-    `过滤掉：${filteredCount} 条；个股情报阈值 minImportance 70`,
+    requestedSources.length
+      ? isLoading
+        ? `已请求 ${requestedSources.length} 个来源：${requestedSources.join("、")}`
+        : `已请求来源：${requestedSources.join("、")}`
+      : "",
+    isLoading ? `当前已返回：${returnedCount} 条` : `返回条数：${returnedCount}`,
+    isLoading
+      ? "正在过滤：等待来源返回后按公司名、ticker、产品词、公告和公开言论筛选"
+      : `过滤掉：${filteredCount} 条；个股情报阈值 minImportance 70`,
     resultText ? `来源结果：${resultText}` : "",
-    lastUpdated ? `最后更新时间：${lastUpdated}` : "",
+    lastUpdated ? `${isLoading ? "本次检查时间" : "最后更新时间"}：${lastUpdated}` : "",
   ].filter(Boolean);
 
   return rows.length
@@ -13955,7 +13962,15 @@ function renderNews(newsState = getNewsState(state.selectedMarket)) {
         <strong>正在更新财经新闻</strong>
         <p>${escapeHtml(newsState.message || "正在请求市场新闻、个股情报、公告和公开言论；返回后会先过滤相关性，再展示重点新闻。")}</p>
         ${renderNewsRequestDiagnostics({
+          status: "loading",
           requestedSources: newsState.requestedSources || ["市场新闻", "个股情报", "公告", "公开言论"],
+          sourceResults:
+            newsState.sourceResults ||
+            ["市场新闻", "个股情报", "公告", "公开言论"].map((label) => ({
+              label,
+              status: "pending",
+              count: 0,
+            })),
           returnedCount: newsState.returnedCount || 0,
           filteredCount: newsState.filteredCount || 0,
           lastUpdated: newsState.lastUpdated || new Date().toISOString(),
@@ -13982,8 +13997,8 @@ function renderNews(newsState = getNewsState(state.selectedMarket)) {
   if (sortedItems.length === 0) {
     elements.newsList.innerHTML = `
       <div class="state-panel empty-state">
-        <strong>${escapeHtml(newsState.newsIssueLabel ? `新闻${newsState.newsIssueLabel}` : "暂未发现高重要性新闻")}</strong>
-        <p>${escapeHtml(newsState.newsIssueMessage || newsState.message || "当前市场暂无达到筛选阈值的关键新闻。你仍可以查看自选股和模型参考分析。")}</p>
+        <strong>${escapeHtml(newsState.newsIssueLabel ? `新闻${newsState.newsIssueLabel}` : "筛选完成：暂未发现高重要性新闻")}</strong>
+        <p>${escapeHtml(newsState.newsIssueMessage || newsState.message || "已完成真实来源请求和相关性过滤，当前市场暂无达到筛选阈值的关键新闻。你仍可以查看自选股和模型参考分析。")}</p>
         ${renderNewsRequestDiagnostics(newsState)}
       </div>
     `;
@@ -14066,6 +14081,11 @@ async function loadNews() {
     items: [],
     message: "正在从后端 API 同步市场新闻、公告和重要言论。",
     requestedSources: ["市场新闻", "个股情报", "公告", "公开言论"],
+    sourceResults: ["市场新闻", "个股情报", "公告", "公开言论"].map((label) => ({
+      label,
+      status: "pending",
+      count: 0,
+    })),
     returnedCount: 0,
     filteredCount: 0,
     lastUpdated: new Date().toISOString(),
