@@ -1,0 +1,71 @@
+# 目标修复证据表 / Remediation Evidence Matrix
+
+更新时间：2026-06-15  
+Updated: 2026-06-15
+
+## 当前固定网址 / Current Fixed URL
+
+- 固定公开测试网址：`https://finance-ai-assistant-web.onrender.com`
+- 临时 `lhr.life` 链接只作为短时备用，不再作为稳定公开入口。
+- Fixed public test URL: `https://finance-ai-assistant-web.onrender.com`
+- Temporary `lhr.life` links are short-lived backups only, not the stable public entry.
+
+## Render AI Key 左列填写 / Render AI Key Left Column
+
+如果用户已经按 OpenAI、Gemini、OpenRouter、Groq 的顺序重新创建并复制 key，Render Environment Variables 左列应填写：
+
+| 顺序 | 左列变量名 | 右侧 Value 对应来源 |
+| --- | --- | --- |
+| 1 | `FINANCE_AI_MODEL_API_KEY` | OpenAI 主模型 key |
+| 2 | `FINANCE_AI_MODEL_FALLBACK_API_KEY` | Gemini 备用模型 key |
+| 3 | `FINANCE_AI_MODEL_FALLBACK2_API_KEY` | OpenRouter 备用模型 key |
+| 4 | `FINANCE_AI_MODEL_FALLBACK3_API_KEY` | Groq 备用模型 key |
+
+If the user recreated and copied keys in the order OpenAI, Gemini, OpenRouter, and Groq, the Render Environment Variables left column should be:
+
+| Order | Left-column variable name | Right-side Value source |
+| --- | --- | --- |
+| 1 | `FINANCE_AI_MODEL_API_KEY` | OpenAI primary model key |
+| 2 | `FINANCE_AI_MODEL_FALLBACK_API_KEY` | Gemini fallback model key |
+| 3 | `FINANCE_AI_MODEL_FALLBACK2_API_KEY` | OpenRouter fallback model key |
+| 4 | `FINANCE_AI_MODEL_FALLBACK3_API_KEY` | Groq fallback model key |
+
+注意：真实 key 只能保存在 Render Dashboard 的 Value 字段，不写入仓库、文档、聊天记录或截图。  
+Note: real keys must only be stored in Render Dashboard Value fields, not in the repo, docs, chat, or screenshots.
+
+## 修复状态 / Fix Status
+
+| 优先级 | 目标问题 | 当前状态 | 证据 |
+| --- | --- | --- | --- |
+| P0 | 固定公开网址稳定可用 | 已验证 / Verified | `https://finance-ai-assistant-web.onrender.com` 通过 180 秒稳定门禁；`externalUseReady=true`、`continuousHealthPassed=true`、`lastFailure=null`。 |
+| P0 | 临时链接失效后的备用访问 | 已建立 / Established | 固定 Render 为主入口；`lhr.life` 和本机地址只作为备用说明。 |
+| P1 | 完整真实 AI 输出 | 已跑通但需持续监控 / Proven but not continuously guaranteed | v123 线上 MSFT 返回 `analysisMode=real-provider`，成功模型 `openai/gpt-oss-120b`；但主模型和部分备用模型仍可能额度不足或冷却。 |
+| P1 | 429/额度不足时自动接力 | 已实现 / Implemented | AI relay 会按主模型、Gemini、OpenRouter、Groq、额外 OpenRouter/Groq 兼容模型尝试，并记录失败类型、冷却和下一步。 |
+| P1 | AI 失败信息过技术化 | 已改善 / Improved | 首页显示用户语言；技术码折叠到诊断详情。 |
+| P1 | 新闻相关性和空状态 | 已改善，需继续抽检 / Improved, needs spot checks | 新闻先按直接相关性、重要性排序，再去重折叠；空状态显示来源、返回条数、过滤条数和更新时间。 |
+| P1 | 自选股卡片状态不一致 | 已改善 / Improved | 自选股区分规则参考和完整 AI 状态，避免把规则概率误显示为“无分析”。 |
+| P2 | 首页内部诊断信息偏多 | 已收敛 / Reduced | 普通用户只看能力摘要；门禁、provider、审计、配置细节放入折叠诊断。 |
+| P2 | 加载和真实数据状态不清晰 | 已改善 / Improved | 行情、新闻、公告、宏观分别显示更新时间或待真实数据。 |
+| P2 | 低可信来源说明不足 | 已改善 / Improved | 新闻显示来源、相关性和折叠原因，弱相关内容不进入首屏直接新闻。 |
+| P2 | AI 输出安全修复路径 | 已实现 / Implemented | Provider 输出不合规或 JSON 结构不完整时会走紧凑 JSON 修复；失败后明确降级规则参考。 |
+| P3 | 用户状态和开发诊断混在一起 | 已改善 / Improved | 普通文案与技术诊断分层显示。 |
+| P3 | 规则参考和完整 AI 区分 | 已实现 / Implemented | 页面明确显示“当前仅为规则分析”或“完整 AI 输出可用”。 |
+
+## 仍需注意 / Remaining Caveats
+
+- 完整 AI 已经在固定线上环境成功输出，但免费或低额度 provider 可能随时触发额度、限流或冷却；因此不能承诺每一次请求都有完整 AI。
+- 如果以后面向更多外部用户，还需要继续完善生产数据库、登录权限、监控告警、数据授权和投资合规审查。
+- 任何 API key 都不能写入项目文件。
+
+- Full AI has successfully produced output on the fixed hosted environment, but free or low-quota providers can still hit quota, rate limits, or cooldowns; the app must not promise full AI on every request.
+- Before broader external use, production database, auth, monitoring, data licensing, and investment-compliance review still need more work.
+- API keys must never be written into project files.
+
+## 关键验收命令 / Key Verification Commands
+
+```bash
+node scripts/render-live-status.mjs --analysis-timeout-ms 60000
+node scripts/stable-hosting-preflight.mjs --url https://finance-ai-assistant-web.onrender.com --duration-ms 180000 --interval-ms 30000 --timeout-ms 25000
+node --test tests/ai-provider-adapter.test.mjs
+node --test tests/stable-hosting-preflight.test.mjs tests/render-live-status.test.mjs
+```
