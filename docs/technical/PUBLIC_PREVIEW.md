@@ -338,3 +338,15 @@ The local preview server serves the web shell and backend API from the same orig
 - 2026-06-13: Public `/health` returned `200`.
 - 2026-06-13: Public `/api/project/progress` returned `200` and showed `393 automated regression targets`.
 - 2026-06-13: Right-side browser verification showed backend connected, `AI 规则参考`, upside probability `48%`, and downside risk probability `52%`.
+
+- 2026-06-14：固定 Render 测试网址已建立：`https://finance-ai-assistant-web.onrender.com`。
+- 2026-06-14：即时检查返回 `200`：首页、`/health`、`/api/health`、股票搜索接口。
+- 2026-06-14：固定托管门禁通过：`node scripts/stable-hosting-preflight.mjs --url https://finance-ai-assistant-web.onrender.com` 返回 `ok=true`、`externalUseReady=true`、`continuousHealthPassed=true`。
+- 2026-06-14：连续验收窗口为 180 秒，共 11 轮，覆盖 `/`、`/health`、`/api/health`、`/api/analysis?symbol=MSFT&riskProfile=balanced`、`/api/stocks/search?q=Microsoft`，`lastFailure=null`。
+- 2026-06-14：固定 Render 网址首页加载 `app.js?v=107`。该网址替代 `lhr.life` 临时链接作为当前外部测试入口。
+
+- 2026-06-14: Fixed Render test URL is now available: `https://finance-ai-assistant-web.onrender.com`.
+- 2026-06-14: Immediate checks returned `200` for the homepage, `/health`, `/api/health`, and stock search endpoint.
+- 2026-06-14: The fixed-hosting gate passed: `node scripts/stable-hosting-preflight.mjs --url https://finance-ai-assistant-web.onrender.com` returned `ok=true`, `externalUseReady=true`, and `continuousHealthPassed=true`.
+- 2026-06-14: The continuous validation window was 180 seconds with 11 iterations, covering `/`, `/health`, `/api/health`, `/api/analysis?symbol=MSFT&riskProfile=balanced`, and `/api/stocks/search?q=Microsoft`; `lastFailure=null`.
+- 2026-06-14: The fixed Render homepage loads `app.js?v=107`. This URL replaces temporary `lhr.life` links as the current external test entry.

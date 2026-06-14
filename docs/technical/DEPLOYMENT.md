@@ -232,6 +232,40 @@ Acceptance criteria:
 - `/api/analysis?symbol=MSFT&riskProfile=balanced` stays `200`
 - `/api/stocks/search?q=Microsoft` stays `200`
 
+## 当前固定测试网址 / Current Fixed Test URL
+
+当前已通过稳定访问门禁的固定外部测试网址：
+
+```text
+https://finance-ai-assistant-web.onrender.com
+```
+
+验收证据：
+
+- 验收时间：2026-06-14
+- 验收命令：`node scripts/stable-hosting-preflight.mjs --url https://finance-ai-assistant-web.onrender.com`
+- 验收结果：`ok=true`、`externalUseReady=true`、`continuousHealthPassed=true`
+- 连续窗口：180 秒
+- 轮次：11
+- 覆盖端点：`/`、`/health`、`/api/health`、`/api/analysis?symbol=MSFT&riskProfile=balanced`、`/api/stocks/search?q=Microsoft`
+- 失败记录：`lastFailure=null`
+
+Current fixed external test URL that passed the stable access gate:
+
+```text
+https://finance-ai-assistant-web.onrender.com
+```
+
+Validation evidence:
+
+- Validation date: 2026-06-14
+- Validation command: `node scripts/stable-hosting-preflight.mjs --url https://finance-ai-assistant-web.onrender.com`
+- Result: `ok=true`, `externalUseReady=true`, `continuousHealthPassed=true`
+- Continuous window: 180 seconds
+- Iterations: 11
+- Covered endpoints: `/`, `/health`, `/api/health`, `/api/analysis?symbol=MSFT&riskProfile=balanced`, `/api/stocks/search?q=Microsoft`
+- Failure record: `lastFailure=null`
+
 ## 限制 / Limits
 
 Render 免费实例可能冷启动，首次访问会慢。该环境仍是测试环境，不等于正式面向社会上线。正式上线仍需要生产数据库、认证、密钥管理、监控告警、数据授权和合规复核。
