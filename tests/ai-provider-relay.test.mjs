@@ -396,6 +396,40 @@ test("AI provider retries chat-compatible 400 without response_format", async ()
   }
 });
 
+test("AI provider retries invalid chat JSON with compact prompts", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body || "{}");
+    requests.push({ url, body });
+    if (requests.length < 3) {
+      return jsonResponse(chatPayload("not json"));
+    }
+    return jsonResponse(chatPayload(validAnalysis({ actionReference: "压缩 JSON prompt 后生成完整分析。" })));
+  };
+
+  try {
+    const adapter = createAiProviderAdapter({
+      env: adapterEnv({
+        FINANCE_AI_MODEL_ID: "openai/gpt-oss-120b",
+        FINANCE_AI_MODEL_BASE_URL: "https://api.groq.com/openai/v1",
+      }),
+    });
+
+    const result = await adapter.generateStructuredAnalysis(input);
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.providerRelay.used, "openai/gpt-oss-120b");
+    assert.equal(result.provider.compactPrompt, true);
+    assert.equal(result.provider.ultraCompactPrompt, true);
+    assert.equal(requests.length, 3);
+    assert.match(requests[1].body.messages[0].content, /只输出一个 JSON 对象/);
+    assert.match(requests[2].body.messages[0].content, /只输出纯 JSON 对象/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("AI provider expands alternate fallback model ids for same-key relay", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];

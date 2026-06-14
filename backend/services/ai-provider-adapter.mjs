@@ -1743,8 +1743,15 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
     const content = payload?.choices?.[0]?.message?.content;
     const parsed = extractJsonObject(content);
     if (!parsed) {
-      if (isGeminiOpenAiCompatibleConfig(config) && !ultraCompact) {
+      if (!compact) {
         return callOpenAiCompatibleStructuredAnalysis(input, config, {
+          ...options,
+          compact: true,
+        });
+      }
+      if (!ultraCompact) {
+        return callOpenAiCompatibleStructuredAnalysis(input, config, {
+          ...options,
           compact: true,
           ultraCompact: true,
         });
