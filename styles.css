@@ -1460,6 +1460,39 @@ select:focus {
   font-weight: 800;
 }
 
+.developer-settings {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 14px;
+}
+
+.developer-settings summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.developer-settings summary small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.developer-settings[open] {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.developer-settings[open] > article {
+  margin-top: 12px;
+}
+
 .readiness-item {
   display: grid;
   gap: 6px;
