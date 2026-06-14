@@ -232,22 +232,32 @@ function summarizeRelayCooldown(attempts = [], ai = {}) {
 
 function summarizeAnalysis(payload = {}, endpoint = {}, ai = {}) {
   const hasError = Boolean(payload.error);
-  const analysisMode = payload.analysisMode || "";
+  const analysisServiceMode = payload.analysisService?.mode || payload.analysisService?.id || "";
+  const analysisMode = payload.analysisMode || analysisServiceMode || "";
   const modelIssue = payload.modelIssue || payload.error || null;
   const providerRelay = payload.providerRelay || null;
   const relayAttempts = normalizeRelayAttempts(providerRelay);
+  const successfulRelayAttempt = relayAttempts.find(
+    (attempt) =>
+      /完整 AI 分析已生成|full ai/i.test(`${attempt.finalReason} ${attempt.outputStatus}`) ||
+      (/调用成功/.test(attempt.callStatus) && /校验通过/.test(attempt.validationStatus)),
+  );
   const cooldown = summarizeRelayCooldown(relayAttempts, ai);
+  const realProviderServiceReady = Boolean(analysisMode && analysisMode !== "real-data-rule-reference");
   const fullAiOutputReady =
     endpoint.ok &&
     !hasError &&
-    analysisMode &&
-    analysisMode !== "real-data-rule-reference" &&
-    !modelIssue;
+    !modelIssue &&
+    (realProviderServiceReady || Boolean(successfulRelayAttempt));
   return {
     ok: endpoint.ok,
     status: endpoint.status,
     analysisMode,
+    analysisServiceMode,
     fullAiOutputReady,
+    successfulRelayModel: fullAiOutputReady
+      ? successfulRelayAttempt?.model || providerRelay?.used || payload.analysisService?.model || ""
+      : "",
     modelIssueCode: modelIssue?.code || "",
     modelIssueMessage: modelIssue?.message || "",
     relayAttemptCount: relayAttempts.length,

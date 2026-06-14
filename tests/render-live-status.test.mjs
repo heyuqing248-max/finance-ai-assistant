@@ -30,7 +30,7 @@ const healthyBaseRoutes = {
   "/api/project/progress": response(200, {
     progress: {
       updatedAt: "2026-06-14",
-      completed: ["后端 API、生产门禁规划、457 条自动化回归目标"],
+      completed: ["后端 API、生产门禁规划、458 条自动化回归目标"],
     },
   }),
 };
@@ -71,7 +71,7 @@ test("render live status accepts fallback-only AI relay when primary key is miss
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
     expectedAppVersion: 111,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=116"></script>'),
+      "/": response(200, '<script src="./app.js?v=117"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -140,7 +140,7 @@ test("render live status allows a longer timeout for analysis smoke", async () =
         });
       }
       return createFetch({
-        "/": response(200, '<script src="./app.js?v=116"></script>'),
+        "/": response(200, '<script src="./app.js?v=117"></script>'),
         ...healthyBaseRoutes,
         "/api/ai-services/provider-adapter": response(200, {
           providerAdapter: {
@@ -161,12 +161,72 @@ test("render live status allows a longer timeout for analysis smoke", async () =
   assert.equal(status.ok, true);
 });
 
+test("render live status accepts full AI success when analysisMode is omitted", async () => {
+  const status = await buildRenderLiveStatus({
+    stableUrl: "https://finance-ai-assistant-web.onrender.com",
+    expectedAppVersion: 117,
+    fetchImpl: createFetch({
+      "/": response(200, '<script src="./app.js?v=117"></script>'),
+      ...healthyBaseRoutes,
+      "/api/ai-services/provider-adapter": response(200, {
+        providerAdapter: {
+          status: "ready-for-local-real-model",
+          runtimeMode: "render-smoke",
+          configured: true,
+          networkEnabled: true,
+          canCallLiveModel: true,
+          fallbackModelProviders: [
+            { id: "fallback3-alt1", modelId: "openai/gpt-oss-120b", configured: true, canCallLiveModel: true },
+          ],
+        },
+      }),
+      "/api/analysis?symbol=MSFT&riskProfile=balanced": response(200, {
+        analysisService: { mode: "real-provider", model: "openai/gpt-oss-120b" },
+        providerRelay: {
+          used: "openai/gpt-oss-120b",
+          attempts: [
+            {
+              role: "主模型",
+              model: "gpt-5.5",
+              code: "REAL_AI_MODEL_INSUFFICIENT_QUOTA",
+              finalReason: "主模型额度不足",
+              callStatus: "调用失败",
+              outputStatus: "无输出",
+              validationStatus: "未进入校验",
+              cooldownStatus: "cooldown-active",
+              retryable: true,
+              retryAfterSeconds: 3600,
+              retryAt: "2026-06-14T17:45:43.876Z",
+            },
+            {
+              role: "备用 4",
+              model: "openai/gpt-oss-120b",
+              finalReason: "完整 AI 分析已生成",
+              callStatus: "调用成功",
+              outputStatus: "完整 AI 输出可用",
+              validationStatus: "校验通过",
+              cooldownStatus: "not-required",
+            },
+          ],
+        },
+      }),
+    }),
+  });
+
+  assert.equal(status.analysis.analysisMode, "real-provider");
+  assert.equal(status.analysis.analysisServiceMode, "real-provider");
+  assert.equal(status.analysis.fullAiOutputReady, true);
+  assert.equal(status.analysis.successfulRelayModel, "openai/gpt-oss-120b");
+  assert.match(status.analysis.guidance, /完整真实 AI 已输出/);
+  assert.deepEqual(status.nextSteps, ["固定网址版本、接口和完整 AI 输出均通过本轮检查。"]);
+});
+
 test("render live status reports provider cooldown retry windows", async () => {
   const status = await buildRenderLiveStatus({
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
     expectedAppVersion: 115,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=116"></script>'),
+      "/": response(200, '<script src="./app.js?v=117"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -241,6 +301,7 @@ test("render live status reports provider cooldown retry windows", async () => {
   });
 
   assert.equal(status.analysis.fullAiOutputReady, false);
+  assert.equal(status.analysis.successfulRelayModel, "");
   assert.equal(status.analysis.cooldown.cooldownActive, true);
   assert.equal(status.analysis.cooldown.cooldownAttemptCount, 3);
   assert.equal(status.analysis.cooldown.soonestRetryAt, "2026-06-14T16:40:49.000Z");
@@ -270,7 +331,7 @@ test("render live status reports when an uncooldown fallback remains available",
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
     expectedAppVersion: 115,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=116"></script>'),
+      "/": response(200, '<script src="./app.js?v=117"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -314,7 +375,7 @@ test("render live status blocks when all AI relay keys are missing", async () =>
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
     expectedAppVersion: 111,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=116"></script>'),
+      "/": response(200, '<script src="./app.js?v=117"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
