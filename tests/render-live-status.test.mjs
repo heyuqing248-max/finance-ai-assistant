@@ -30,7 +30,7 @@ const healthyBaseRoutes = {
   "/api/project/progress": response(200, {
     progress: {
       updatedAt: "2026-06-14",
-      completed: ["后端 API、生产门禁规划、459 条自动化回归目标"],
+      completed: ["后端 API、生产门禁规划、460 条自动化回归目标"],
     },
   }),
 };
@@ -71,7 +71,7 @@ test("render live status accepts fallback-only AI relay when primary key is miss
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
     expectedAppVersion: 111,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=118"></script>'),
+      "/": response(200, '<script src="./app.js?v=119"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -140,7 +140,7 @@ test("render live status allows a longer timeout for analysis smoke", async () =
         });
       }
       return createFetch({
-        "/": response(200, '<script src="./app.js?v=118"></script>'),
+        "/": response(200, '<script src="./app.js?v=119"></script>'),
         ...healthyBaseRoutes,
         "/api/ai-services/provider-adapter": response(200, {
           providerAdapter: {
@@ -164,9 +164,9 @@ test("render live status allows a longer timeout for analysis smoke", async () =
 test("render live status accepts full AI success when analysisMode is omitted", async () => {
   const status = await buildRenderLiveStatus({
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
-    expectedAppVersion: 118,
+    expectedAppVersion: 119,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=118"></script>'),
+      "/": response(200, '<script src="./app.js?v=119"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -226,7 +226,7 @@ test("render live status reports provider cooldown retry windows", async () => {
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
     expectedAppVersion: 115,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=118"></script>'),
+      "/": response(200, '<script src="./app.js?v=119"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -331,7 +331,7 @@ test("render live status reports when an uncooldown fallback remains available",
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
     expectedAppVersion: 115,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=118"></script>'),
+      "/": response(200, '<script src="./app.js?v=119"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -375,7 +375,7 @@ test("render live status blocks when all AI relay keys are missing", async () =>
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
     expectedAppVersion: 111,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=118"></script>'),
+      "/": response(200, '<script src="./app.js?v=119"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {

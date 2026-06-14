@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v118";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v119";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、459 条自动化回归目标",
+    "后端 API、生产门禁规划、460 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -20224,12 +20224,12 @@ function renderProjectProgressState() {
   elements.projectProgressState.innerHTML = `
     <div class="state-panel success-state project-progress-panel">
       <strong>测试版状态更新时间：${escapeHtml(progress.updatedAt)}</strong>
-      <p>当前网页用于真实数据测试；搜索、概率、新闻、自选股和风险提示优先展示，生产门禁细节已收纳到开发者详情。</p>
+      <p>当前网页优先展示股票搜索、概率/风险、新闻公告、自选股和合规提示；内部开发进度已折叠，普通用户可以先忽略。</p>
       <div class="provider-summary project-user-summary" aria-label="普通用户项目状态摘要">
-        <span>本地 Demo 可用</span>
-        <span>固定公开网址已建立</span>
+        <span>固定公开网址可用</span>
         <span>真实数据规则参考可用</span>
-        <span>完整 AI 待模型密钥</span>
+        <span>完整 AI 已验证</span>
+        <span>新闻已去重折叠</span>
       </div>
       ${developerProgressMarkup}
       ${progress.disclaimer ? `<p class="provider-note">${escapeHtml(progress.disclaimer)}</p>` : ""}
