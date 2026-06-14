@@ -165,11 +165,78 @@ function summarizeAiAdapter(payload = {}) {
   };
 }
 
-function summarizeAnalysis(payload = {}, endpoint = {}) {
+function normalizeRelayAttempts(providerRelay = {}) {
+  const attempts = Array.isArray(providerRelay?.attempts)
+    ? providerRelay.attempts
+    : Array.isArray(providerRelay?.fallbackErrorCodes)
+      ? providerRelay.fallbackErrorCodes
+      : [];
+  return attempts
+    .filter((attempt) => attempt && typeof attempt === "object")
+    .map((attempt, index) => ({
+      role: typeof attempt.role === "string" && attempt.role ? attempt.role : index === 0 ? "主模型" : `备用 ${index}`,
+      model: typeof attempt.model === "string" ? attempt.model : "",
+      code: typeof attempt.code === "string" ? attempt.code : "",
+      finalReason: typeof attempt.finalReason === "string" ? attempt.finalReason : "",
+      callStatus: typeof attempt.callStatus === "string" ? attempt.callStatus : "",
+      outputStatus: typeof attempt.outputStatus === "string" ? attempt.outputStatus : "",
+      validationStatus: typeof attempt.validationStatus === "string" ? attempt.validationStatus : "",
+      cooldownStatus: typeof attempt.cooldownStatus === "string" ? attempt.cooldownStatus : "",
+      retryable: attempt.retryable === true,
+      retryAfterSeconds: Number.isFinite(Number(attempt.retryAfterSeconds))
+        ? Math.max(0, Number(attempt.retryAfterSeconds))
+        : 0,
+      failedAt: typeof attempt.failedAt === "string" ? attempt.failedAt : "",
+      retryAt: typeof attempt.retryAt === "string" ? attempt.retryAt : "",
+      nextStep: typeof attempt.nextStep === "string" ? attempt.nextStep : "",
+    }));
+}
+
+function summarizeRelayCooldown(attempts = [], ai = {}) {
+  const cooldownAttempts = attempts.filter((attempt) =>
+    /COOLDOWN|cooldown|RATE_LIMIT|QUOTA|429|INSUFFICIENT/i.test(
+      `${attempt.code} ${attempt.cooldownStatus} ${attempt.finalReason}`,
+    ),
+  );
+  const retryTimes = cooldownAttempts
+    .map((attempt) => Date.parse(attempt.retryAt))
+    .filter((time) => Number.isFinite(time))
+    .sort((a, b) => a - b);
+  const cooldownModels = new Set(
+    cooldownAttempts.map((attempt) => String(attempt.model || "").toLowerCase()).filter(Boolean),
+  );
+  const immediateFallbackAvailable = Array.isArray(ai.fallbackProviders)
+    ? ai.fallbackProviders.some((provider) => {
+        const model = String(provider.modelId || "").toLowerCase();
+        return provider.canCallLiveModel === true && model && !cooldownModels.has(model);
+      })
+    : false;
+  const soonestRetryAt = retryTimes.length ? new Date(retryTimes[0]).toISOString() : "";
+  const maxRetryAfterSeconds = cooldownAttempts.reduce(
+    (max, attempt) => Math.max(max, Number(attempt.retryAfterSeconds) || 0),
+    0,
+  );
+  return {
+    cooldownActive: cooldownAttempts.some((attempt) => /cooldown-active/i.test(attempt.cooldownStatus)),
+    cooldownAttemptCount: cooldownAttempts.length,
+    soonestRetryAt,
+    maxRetryAfterSeconds,
+    immediateFallbackAvailable,
+    guidance: cooldownAttempts.length
+      ? immediateFallbackAvailable
+        ? "部分 provider 冷却中；仍有未冷却备用模型可继续尝试。"
+        : "当前可见 provider 均在冷却或限流记录中；建议等到最早重试时间后再检测完整 AI。"
+      : "当前分析响应没有 provider 冷却记录。",
+  };
+}
+
+function summarizeAnalysis(payload = {}, endpoint = {}, ai = {}) {
   const hasError = Boolean(payload.error);
   const analysisMode = payload.analysisMode || "";
   const modelIssue = payload.modelIssue || payload.error || null;
   const providerRelay = payload.providerRelay || null;
+  const relayAttempts = normalizeRelayAttempts(providerRelay);
+  const cooldown = summarizeRelayCooldown(relayAttempts, ai);
   const fullAiOutputReady =
     endpoint.ok &&
     !hasError &&
@@ -183,14 +250,16 @@ function summarizeAnalysis(payload = {}, endpoint = {}) {
     fullAiOutputReady,
     modelIssueCode: modelIssue?.code || "",
     modelIssueMessage: modelIssue?.message || "",
-    relayAttemptCount: Array.isArray(providerRelay?.attempts) ? providerRelay.attempts.length : 0,
-    relayAttemptCodes: Array.isArray(providerRelay?.attempts)
-      ? providerRelay.attempts.map((attempt) => attempt.code || attempt.finalReason || "").filter(Boolean)
-      : [],
+    relayAttemptCount: relayAttempts.length,
+    relayAttemptCodes: relayAttempts.map((attempt) => attempt.code || attempt.finalReason || "").filter(Boolean),
+    relayAttempts,
+    cooldown,
     guidance: fullAiOutputReady
       ? "完整真实 AI 已输出。"
       : analysisMode === "real-data-rule-reference"
-        ? "当前线上分析仍是规则参考，不是完整真实 AI 深度分析。"
+        ? cooldown.cooldownActive
+          ? "当前线上分析是规则参考；完整 AI 因 provider 冷却/限流暂不可用。"
+          : "当前线上分析仍是规则参考，不是完整真实 AI 深度分析。"
         : "当前线上未确认完整真实 AI 输出。",
   };
 }
@@ -208,6 +277,15 @@ function buildNextSteps({ deployedLatest, ai, analysis }) {
   }
   if (ai.ok && !analysis.fullAiOutputReady) {
     nextSteps.push("AI 接力配置可调用后，继续复测完整 AI 输出；若仍为规则参考，查看 provider 额度、429 冷却和结构化校验失败原因。");
+    if (analysis.cooldown?.cooldownActive) {
+      const retryText = analysis.cooldown.soonestRetryAt
+        ? `最早建议重试时间：${analysis.cooldown.soonestRetryAt}。`
+        : "provider 未返回明确最早重试时间。";
+      const fallbackText = analysis.cooldown.immediateFallbackAvailable
+        ? "仍有未冷却备用模型可立即继续检查。"
+        : "当前没有未冷却备用模型可立即继续检查。";
+      nextSteps.push(`${retryText}${fallbackText}`);
+    }
   }
   if (!nextSteps.length) {
     nextSteps.push("固定网址版本、接口和完整 AI 输出均通过本轮检查。");
@@ -250,7 +328,7 @@ export async function buildRenderLiveStatus(options = {}) {
   const aiPayload = parseJsonResult(aiAdapterResult) || {};
   const analysisPayload = parseJsonResult(analysisResult) || {};
   const ai = summarizeAiAdapter(aiPayload);
-  const analysis = summarizeAnalysis(analysisPayload, summarizeEndpoint(analysisResult));
+  const analysis = summarizeAnalysis(analysisPayload, summarizeEndpoint(analysisResult), ai);
   const endpointsOk = [homeResult, healthResult, apiHealthResult, progressResult, aiAdapterResult, analysisResult].every(
     (result) => result.ok,
   );

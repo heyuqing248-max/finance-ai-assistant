@@ -161,6 +161,154 @@ test("render live status allows a longer timeout for analysis smoke", async () =
   assert.equal(status.ok, true);
 });
 
+test("render live status reports provider cooldown retry windows", async () => {
+  const status = await buildRenderLiveStatus({
+    stableUrl: "https://finance-ai-assistant-web.onrender.com",
+    expectedAppVersion: 115,
+    fetchImpl: createFetch({
+      "/": response(200, '<script src="./app.js?v=115"></script>'),
+      ...healthyBaseRoutes,
+      "/api/ai-services/provider-adapter": response(200, {
+        providerAdapter: {
+          status: "ready-for-local-real-model",
+          runtimeMode: "render-smoke",
+          configured: true,
+          networkEnabled: true,
+          canCallLiveModel: true,
+          fallbackModelProviders: [
+            { id: "fallback", modelId: "gemini-2.5-flash", configured: true, canCallLiveModel: true },
+            { id: "fallback2", modelId: "qwen/qwen3-next-80b-a3b-instruct:free", configured: true, canCallLiveModel: true },
+          ],
+        },
+      }),
+      "/api/analysis?symbol=MSFT&riskProfile=balanced": response(200, {
+        analysisMode: "real-data-rule-reference",
+        modelIssue: {
+          code: "REAL_AI_MODEL_PROVIDER_COOLDOWN_ACTIVE",
+          message: "所有 provider 冷却中。",
+        },
+        providerRelay: {
+          attempts: [
+            {
+              role: "主模型",
+              model: "gpt-5.5",
+              code: "REAL_AI_MODEL_PROVIDER_COOLDOWN_ACTIVE",
+              callStatus: "已跳过",
+              outputStatus: "冷却中未请求",
+              validationStatus: "未进入校验",
+              finalReason: "Provider 冷却中",
+              retryable: true,
+              retryAfterSeconds: 3600,
+              failedAt: "2026-06-14T16:31:49.000Z",
+              retryAt: "2026-06-14T17:31:49.000Z",
+              cooldownStatus: "cooldown-active",
+              nextStep: "等待建议重试时间。",
+            },
+            {
+              role: "备用 1",
+              model: "gemini-2.5-flash",
+              code: "REAL_AI_MODEL_PROVIDER_COOLDOWN_ACTIVE",
+              callStatus: "已跳过",
+              outputStatus: "冷却中未请求",
+              validationStatus: "未进入校验",
+              finalReason: "Provider 冷却中",
+              retryable: true,
+              retryAfterSeconds: 540,
+              failedAt: "2026-06-14T16:31:49.000Z",
+              retryAt: "2026-06-14T16:40:49.000Z",
+              cooldownStatus: "cooldown-active",
+              nextStep: "等待建议重试时间。",
+            },
+            {
+              role: "备用 2",
+              model: "qwen/qwen3-next-80b-a3b-instruct:free",
+              code: "REAL_AI_MODEL_PROVIDER_COOLDOWN_ACTIVE",
+              callStatus: "已跳过",
+              outputStatus: "冷却中未请求",
+              validationStatus: "未进入校验",
+              finalReason: "Provider 冷却中",
+              retryable: true,
+              retryAfterSeconds: 600,
+              failedAt: "2026-06-14T16:31:49.000Z",
+              retryAt: "2026-06-14T16:41:49.000Z",
+              cooldownStatus: "cooldown-active",
+              nextStep: "等待建议重试时间。",
+            },
+          ],
+        },
+      }),
+    }),
+  });
+
+  assert.equal(status.analysis.fullAiOutputReady, false);
+  assert.equal(status.analysis.cooldown.cooldownActive, true);
+  assert.equal(status.analysis.cooldown.cooldownAttemptCount, 3);
+  assert.equal(status.analysis.cooldown.soonestRetryAt, "2026-06-14T16:40:49.000Z");
+  assert.equal(status.analysis.cooldown.maxRetryAfterSeconds, 3600);
+  assert.equal(status.analysis.cooldown.immediateFallbackAvailable, false);
+  assert.match(status.analysis.cooldown.guidance, /建议等到最早重试时间/);
+  assert.match(status.nextSteps.join(" "), /最早建议重试时间：2026-06-14T16:40:49\.000Z/);
+  assert.match(status.nextSteps.join(" "), /当前没有未冷却备用模型可立即继续检查/);
+  assert.deepEqual(
+    status.analysis.relayAttempts.map((attempt) => [
+      attempt.role,
+      attempt.model,
+      attempt.callStatus,
+      attempt.outputStatus,
+      attempt.validationStatus,
+    ]),
+    [
+      ["主模型", "gpt-5.5", "已跳过", "冷却中未请求", "未进入校验"],
+      ["备用 1", "gemini-2.5-flash", "已跳过", "冷却中未请求", "未进入校验"],
+      ["备用 2", "qwen/qwen3-next-80b-a3b-instruct:free", "已跳过", "冷却中未请求", "未进入校验"],
+    ],
+  );
+});
+
+test("render live status reports when an uncooldown fallback remains available", async () => {
+  const status = await buildRenderLiveStatus({
+    stableUrl: "https://finance-ai-assistant-web.onrender.com",
+    expectedAppVersion: 115,
+    fetchImpl: createFetch({
+      "/": response(200, '<script src="./app.js?v=115"></script>'),
+      ...healthyBaseRoutes,
+      "/api/ai-services/provider-adapter": response(200, {
+        providerAdapter: {
+          status: "ready-for-local-real-model",
+          runtimeMode: "render-smoke",
+          configured: true,
+          networkEnabled: true,
+          canCallLiveModel: true,
+          fallbackModelProviders: [
+            { id: "fallback", modelId: "gemini-2.5-flash", configured: true, canCallLiveModel: true },
+            { id: "fallback2", modelId: "openai/gpt-oss-120b", configured: true, canCallLiveModel: true },
+          ],
+        },
+      }),
+      "/api/analysis?symbol=MSFT&riskProfile=balanced": response(200, {
+        analysisMode: "real-data-rule-reference",
+        modelIssue: { code: "REAL_AI_MODEL_PROVIDER_COOLDOWN_ACTIVE" },
+        providerRelay: {
+          attempts: [
+            {
+              role: "备用 1",
+              model: "gemini-2.5-flash",
+              code: "REAL_AI_MODEL_PROVIDER_COOLDOWN_ACTIVE",
+              retryAt: "2026-06-14T16:40:49.000Z",
+              cooldownStatus: "cooldown-active",
+              retryable: true,
+            },
+          ],
+        },
+      }),
+    }),
+  });
+
+  assert.equal(status.analysis.cooldown.cooldownActive, true);
+  assert.equal(status.analysis.cooldown.immediateFallbackAvailable, true);
+  assert.match(status.analysis.cooldown.guidance, /仍有未冷却备用模型可继续尝试/);
+});
+
 test("render live status blocks when all AI relay keys are missing", async () => {
   const status = await buildRenderLiveStatus({
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
