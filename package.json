@@ -16,6 +16,7 @@
     "handoff:stable-hosting": "node scripts/stable-hosting-handoff.mjs",
     "handoff:stable-hosting:html": "node scripts/stable-hosting-handoff.mjs --html",
     "check:render-readiness": "node scripts/render-deploy-readiness.mjs",
+    "status:render-live": "node scripts/render-live-status.mjs",
     "render:env-template": "node scripts/render-dashboard-env-template.mjs",
     "render:secret-audit": "node scripts/render-deploy-readiness.mjs --include-runtime-files",
     "gate:stable-access": "node scripts/stable-access-gate.mjs",
@@ -24,6 +25,6 @@
     "dev:web": "node scripts/web-dev-server.mjs",
     "dev:backend": "node backend/server.mjs",
     "test": "node --test tests/*.test.mjs backend/tests/*.test.mjs",
-    "check": "node --check app.js && node --check service-worker.js && node --check scripts/web-dev-server.mjs && node --check scripts/full-dev-server.mjs && node --check scripts/real-data-dev-server.mjs && node --check scripts/public-preview-server.mjs && node --check scripts/public-preview-health-check.mjs && node --check scripts/public-preview-watchdog.mjs && node --check scripts/public-preview-status.mjs && node --check scripts/public-preview-access-report.mjs && node --check scripts/public-preview-supervisor.mjs && node --check scripts/stable-hosting-preflight.mjs && node --check scripts/stable-hosting-handoff.mjs && node --check scripts/stable-access-gate.mjs && node --check scripts/render-deploy-readiness.mjs && node --check scripts/render-dashboard-env-template.mjs && node --check scripts/production-start.mjs && node --check backend/server.mjs && node --test tests/*.test.mjs backend/tests/*.test.mjs"
+    "check": "node --check app.js && node --check service-worker.js && node --check scripts/web-dev-server.mjs && node --check scripts/full-dev-server.mjs && node --check scripts/real-data-dev-server.mjs && node --check scripts/public-preview-server.mjs && node --check scripts/public-preview-health-check.mjs && node --check scripts/public-preview-watchdog.mjs && node --check scripts/public-preview-status.mjs && node --check scripts/public-preview-access-report.mjs && node --check scripts/public-preview-supervisor.mjs && node --check scripts/stable-hosting-preflight.mjs && node --check scripts/stable-hosting-handoff.mjs && node --check scripts/stable-access-gate.mjs && node --check scripts/render-deploy-readiness.mjs && node --check scripts/render-live-status.mjs && node --check scripts/render-dashboard-env-template.mjs && node --check scripts/production-start.mjs && node --check backend/server.mjs && node --test tests/*.test.mjs backend/tests/*.test.mjs"
   }
 }

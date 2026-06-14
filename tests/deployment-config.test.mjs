@@ -9,6 +9,7 @@ test("Render blueprint exposes same-origin production start and health check", (
   assert.match(renderYaml, /runtime:\s*node/);
   assert.match(renderYaml, /startCommand:\s*npm start/);
   assert.match(renderYaml, /healthCheckPath:\s*\/health/);
+  assert.match(renderYaml, /autoDeploy:\s*true/);
   assert.match(renderYaml, /key:\s*FINANCE_AI_PUBLIC_HOST\s*\n\s*value:\s*0\.0\.0\.0/);
   assert.equal(packageJson.scripts.start, "node scripts/production-start.mjs");
 });

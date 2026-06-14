@@ -68,7 +68,7 @@ At minimum, configure these secrets in Render. Missing keys will leave related f
 
 真实 key 仍只能在 Render Dashboard 手动填写。部署后若主模型 key 缺失或额度不足，后端会继续尝试已配置 key 的备用模型，不会因为主模型未配置而阻断 Gemini/OpenRouter/Groq 接力。
 
-Because `autoDeploy` is disabled, after pushing this configuration to GitHub, manually trigger a Render redeploy before expecting the live site to load `app.js?v=108` or the updated AI relay behavior.
+`render.yaml` now sets `autoDeploy: true`, so future GitHub pushes should redeploy automatically after Render has synced this blueprint. If the existing Render service was created before this change, manually sync the blueprint or trigger one redeploy in the Render Dashboard before expecting the live site to load the latest `app.js?v=` bundle or updated AI relay behavior.
 
 `render.yaml` now contains the non-secret settings required for real AI smoke/runtime:
 
@@ -80,7 +80,7 @@ Because `autoDeploy` is disabled, after pushing this configuration to GitHub, ma
 
 Real keys must still be entered manually in the Render Dashboard. After deployment, if the primary key is missing or quota-limited, the backend continues to try configured fallback keys instead of letting the missing primary block Gemini/OpenRouter/Groq relay.
 
-由于 `autoDeploy` 已关闭，推送配置到 GitHub 后，需要在 Render 手动触发 redeploy，线上才会加载 `app.js?v=108` 和新的 AI 接力行为。
+`render.yaml` 现在设置为 `autoDeploy: true`，Render 同步该蓝图后，后续 GitHub 推送应自动 redeploy。如果现有 Render 服务创建早于本次修改，请先在 Render Dashboard 手动同步蓝图或触发一次 redeploy，线上才会加载最新 `app.js?v=` 和新的 AI 接力行为。
 
 ## 部署后验收 / Post-Deploy Verification
 
@@ -230,6 +230,14 @@ FINANCE_AI_PUBLIC_PREVIEW_URL=https://your-render-url.onrender.com npm run check
 FINANCE_AI_STABLE_PREVIEW_URL=https://your-render-url.onrender.com npm run check:stable-hosting
 ```
 
+如果要检查当前固定 Render 网址是否已经部署到本地最新版本，并同时查看 AI 主/备用接力状态，运行：
+
+```bash
+npm run status:render-live -- --url https://finance-ai-assistant-web.onrender.com
+```
+
+该命令会检查首页脚本版本、`/health`、`/api/health`、`/api/project/progress`、`/api/ai-services/provider-adapter` 和 MSFT 分析接口。它只输出密钥存在性/运行状态，不读取、不打印真实 key。
+
 验收标准：
 
 - 首页 `/` 在 2-3 分钟窗口内持续 `200`
@@ -249,6 +257,14 @@ You can also pass the fixed URL to the stable-hosting preflight so blueprint che
 ```bash
 FINANCE_AI_STABLE_PREVIEW_URL=https://your-render-url.onrender.com npm run check:stable-hosting
 ```
+
+To verify whether the fixed Render URL has deployed the latest local version and to inspect the primary/fallback AI relay status, run:
+
+```bash
+npm run status:render-live -- --url https://finance-ai-assistant-web.onrender.com
+```
+
+This command checks the homepage script version, `/health`, `/api/health`, `/api/project/progress`, `/api/ai-services/provider-adapter`, and an MSFT analysis endpoint. It reports secret presence/runtime status only; it does not read or print real keys.
 
 Acceptance criteria:
 
