@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v112";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v113";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、453 条自动化回归目标",
+    "后端 API、生产门禁规划、454 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -20098,11 +20098,11 @@ function renderProjectProgressState() {
       <p class="provider-warning">下一批真实阻断：${escapeHtml(blockerItems.join(" / "))}</p>
     </details>
   `;
-
-  elements.projectProgressState.innerHTML = `
-    <div class="state-panel success-state project-progress-panel">
-      <strong>真实进度更新时间：${escapeHtml(progress.updatedAt)}</strong>
-      <p>${escapeHtml(connectionText)}</p>
+  const developerProgressMarkup = `
+    <details class="project-progress-details">
+      <summary>展开开发者进度详情</summary>
+      <p class="provider-note">这里保留上线差距、生产门禁和自动化回归证据；普通用户只需查看上方测试版摘要。</p>
+      <p class="provider-note">${escapeHtml(connectionText)}</p>
       ${renderProgressRow(
         "本地网页 Demo",
         progress.localDemoPercent,
@@ -20114,6 +20114,20 @@ function renderProjectProgressState() {
         "真实上线仍缺真实数据源、生产 AI、生产数据库、合规审核和部署监控。",
       )}
       ${developerDiagnosticsMarkup}
+    </details>
+  `;
+
+  elements.projectProgressState.innerHTML = `
+    <div class="state-panel success-state project-progress-panel">
+      <strong>测试版状态更新时间：${escapeHtml(progress.updatedAt)}</strong>
+      <p>当前网页用于真实数据测试；搜索、概率、新闻、自选股和风险提示优先展示，生产门禁细节已收纳到开发者详情。</p>
+      <div class="provider-summary project-user-summary" aria-label="普通用户项目状态摘要">
+        <span>本地 Demo 可用</span>
+        <span>固定公开网址已建立</span>
+        <span>真实数据规则参考可用</span>
+        <span>完整 AI 待模型密钥</span>
+      </div>
+      ${developerProgressMarkup}
       ${progress.disclaimer ? `<p class="provider-note">${escapeHtml(progress.disclaimer)}</p>` : ""}
     </div>
   `;
