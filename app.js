@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v115";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v116";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、456 条自动化回归目标",
+    "后端 API、生产门禁规划、457 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -12573,6 +12573,49 @@ function getProviderRelayCooldownSummary(providerRelay = null, cooldown = null, 
   };
 }
 
+function getProviderRelayUserRecovery(providerRelay = null, cooldown = null, rateLimited = false) {
+  const rows = getProviderRelayCooldownRows(providerRelay);
+  const attempted = getProviderRelayAttemptText(providerRelay)
+    .split(" -> ")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const activeCooldownRows = rows.filter((row) =>
+    /cooldown|limit|quota|429/i.test(`${row.status} ${row.retryAt} ${row.retryAfterMinutes}`),
+  );
+  const retrySource = activeCooldownRows.find((row) => row.retryAt || row.retryAfterMinutes) || null;
+  const retryText = retrySource
+    ? retrySource.retryAt
+      ? `${retrySource.role} ${retrySource.model}：建议 ${retrySource.retryAt} 后重试`
+      : `${retrySource.role} ${retrySource.model}：建议等待约 ${retrySource.retryAfterMinutes} 分钟`
+    : cooldown?.active
+      ? `建议等待约 ${cooldown.remainingMinutes} 分钟`
+      : "";
+  const adapterFallbacks = getAiServiceStatus()?.providerAdapter?.fallbackModelProviders;
+  const cooldownModels = new Set(
+    activeCooldownRows.map((row) => String(row.model || "").trim().toLowerCase()).filter(Boolean),
+  );
+  const attemptedModels = new Set(attempted.map((model) => model.toLowerCase()));
+  const configuredUncooledFallback = Array.isArray(adapterFallbacks)
+    ? adapterFallbacks.some((provider) => {
+        const model = String(provider?.modelId || "").trim().toLowerCase();
+        return provider?.canCallLiveModel === true && model && !cooldownModels.has(model) && !attemptedModels.has(model);
+      })
+    : false;
+  const immediateFallbackAvailable = configuredUncooledFallback;
+  if (activeCooldownRows.length || cooldown?.active || rateLimited) {
+    return {
+      status: immediateFallbackAvailable ? "fallback-available" : "wait-cooldown",
+      text: immediateFallbackAvailable
+        ? `${retryText || "已记录 provider 冷却"}；仍有未冷却备用模型可继续检查。`
+        : `${retryText || "已记录 provider 冷却"}；当前没有未冷却备用模型可立即继续检查。`,
+    };
+  }
+  return {
+    status: "ready",
+    text: "当前没有冷却锁，可按需重新检测完整 AI。",
+  };
+}
+
 function getFriendlyAiFailureInfo(code = "", message = "") {
   const text = `${code || ""} ${message || ""}`;
   if (/INSUFFICIENT_QUOTA|insufficient_quota/i.test(text)) {
@@ -12821,6 +12864,7 @@ function renderAiProviderRelayDetails({ providerRelay = null, modelIssue = null,
         : "等待后端返回";
   const cooldownText = getProviderRelayCooldownText(providerRelay, cooldown, rateLimited);
   const cooldownSummary = getProviderRelayCooldownSummary(providerRelay, cooldown, rateLimited);
+  const userRecovery = getProviderRelayUserRecovery(providerRelay, cooldown, rateLimited);
   const failureText =
     errorCode || message
       ? `${friendlyFailure.type}${message ? `：${message}` : ""}`
@@ -12885,11 +12929,7 @@ function renderAiProviderRelayDetails({ providerRelay = null, modelIssue = null,
       : firstValidation
         ? "备用模型输出未通过安全校验"
         : "完整 AI 暂不可用";
-    const retryHint = cooldown?.active
-      ? `建议约 ${cooldown.remainingMinutes} 分钟后重试受限 provider；系统仍可检查其它备用模型。`
-      : relayRateLimited
-        ? "已记录额度/速率限制；可稍后重试或继续检查备用模型。"
-        : "可稍后重新检测完整 AI。";
+    const retryHint = userRecovery.text || "可稍后重新检测完整 AI。";
     return `
       <div class="ai-user-summary" aria-label="完整 AI 简要状态">
         <div class="analysis-mode-tags" aria-label="分析模式标签">
@@ -12902,6 +12942,7 @@ function renderAiProviderRelayDetails({ providerRelay = null, modelIssue = null,
         <details class="ai-user-reason">
           <summary>查看简要原因</summary>
           <p>${escapeHtml(shortReason)}。${escapeHtml(retryHint)}</p>
+          <p class="ai-recovery-note">${escapeHtml(userRecovery.status === "wait-cooldown" ? "恢复提示：等待冷却结束后再检测完整 AI。" : userRecovery.status === "fallback-available" ? "恢复提示：可继续检查未冷却备用模型。" : "恢复提示：当前可重新检测完整 AI。")}</p>
         </details>
       </div>
       <details class="ai-relay-diagnostics">

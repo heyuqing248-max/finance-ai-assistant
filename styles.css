@@ -1140,6 +1140,11 @@ select:focus {
   line-height: 1.55;
 }
 
+.ai-recovery-note {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .ai-relay-row-list {
   display: grid;
   gap: 8px;

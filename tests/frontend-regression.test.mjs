@@ -2886,7 +2886,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /456 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /457 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2902,7 +2902,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /456 条自动化回归/);
+  assert.match(progressHtml, /457 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -2917,7 +2917,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /456 条自动化回归/);
+  assert.match(progressHtml, /457 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -2932,7 +2932,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /456 条自动化回归/);
+  assert.match(progressHtml, /457 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -3968,10 +3968,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v115",
+    "finance-ai-assistant-v116",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v115/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v116/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -3988,7 +3988,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v115",
+    "finance-ai-assistant-v116",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -14679,6 +14679,8 @@ test("real-data rule reference analysis is not labeled as full AI generation", a
   assert.match(app.byId.get("analysisState").innerHTML, /基于真实数据规则计算/);
   assert.match(app.byId.get("analysisState").innerHTML, /原因：主模型额度不足，备用模型限流或校验失败/);
   assert.match(app.byId.get("analysisState").innerHTML, /查看简要原因/);
+  assert.match(app.byId.get("analysisState").innerHTML, /恢复提示：等待冷却结束后再检测完整 AI/);
+  assert.match(app.byId.get("analysisState").innerHTML, /当前没有未冷却备用模型可立即继续检查/);
   assert.match(app.byId.get("analysisState").innerHTML, /模型接力/);
   assert.match(app.byId.get("analysisState").innerHTML, /gpt-5\.5 -&gt; gemini-2\.5-flash/);
   assert.match(app.byId.get("analysisState").innerHTML, /备用结果/);
@@ -15093,6 +15095,8 @@ test("AI relay compact summary does not misread safety repair not-required as sa
 
   const html = app.byId.get("analysisState").innerHTML;
   assert.match(html, /原因：主模型额度不足，备用模型限流或校验失败/);
+  assert.match(html, /恢复提示：等待冷却结束后再检测完整 AI/);
+  assert.match(html, /当前没有未冷却备用模型可立即继续检查/);
   assert.match(html, /备用 3[\s\S]*llama-3\.1-8b-instant[\s\S]*额度或速率受限/);
   assert.match(html, /调用失败 \/ 无输出 \/ 未进入校验/);
   assert.match(html, /安全修复:not-required/);
