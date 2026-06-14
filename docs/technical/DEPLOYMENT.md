@@ -56,6 +56,32 @@ At minimum, configure these secrets in Render. Missing keys will leave related f
 - `FINANCE_AI_MODEL_FALLBACK2_API_KEY`
 - `FINANCE_AI_MODEL_FALLBACK3_API_KEY`
 
+## Render AI 接力配置 / Render AI Relay Configuration
+
+`render.yaml` 已包含真实 AI smoke/runtime 所需的非密钥配置：
+
+- 主模型：`FINANCE_AI_MODEL_PROVIDER=openai-compatible`、`FINANCE_AI_MODEL_ID=gpt-5.5`、`FINANCE_AI_MODEL_BASE_URL=https://api.openai.com/v1`、`FINANCE_AI_MODEL_API_STYLE=responses`
+- 运行开关：`FINANCE_AI_MODEL_ALLOW_NETWORK=true`、`FINANCE_AI_MODEL_RUNTIME=render-smoke`
+- 备用 1：`gemini-2.5-flash`
+- 备用 2：`qwen/qwen3-next-80b-a3b-instruct:free`
+- 备用 3：`llama-3.1-8b-instant`
+
+真实 key 仍只能在 Render Dashboard 手动填写。部署后若主模型 key 缺失或额度不足，后端会继续尝试已配置 key 的备用模型，不会因为主模型未配置而阻断 Gemini/OpenRouter/Groq 接力。
+
+Because `autoDeploy` is disabled, after pushing this configuration to GitHub, manually trigger a Render redeploy before expecting the live site to load `app.js?v=108` or the updated AI relay behavior.
+
+`render.yaml` now contains the non-secret settings required for real AI smoke/runtime:
+
+- Primary model: `FINANCE_AI_MODEL_PROVIDER=openai-compatible`, `FINANCE_AI_MODEL_ID=gpt-5.5`, `FINANCE_AI_MODEL_BASE_URL=https://api.openai.com/v1`, `FINANCE_AI_MODEL_API_STYLE=responses`
+- Runtime switches: `FINANCE_AI_MODEL_ALLOW_NETWORK=true`, `FINANCE_AI_MODEL_RUNTIME=render-smoke`
+- Fallback 1: `gemini-2.5-flash`
+- Fallback 2: `qwen/qwen3-next-80b-a3b-instruct:free`
+- Fallback 3: `llama-3.1-8b-instant`
+
+Real keys must still be entered manually in the Render Dashboard. After deployment, if the primary key is missing or quota-limited, the backend continues to try configured fallback keys instead of letting the missing primary block Gemini/OpenRouter/Groq relay.
+
+由于 `autoDeploy` 已关闭，推送配置到 GitHub 后，需要在 Render 手动触发 redeploy，线上才会加载 `app.js?v=108` 和新的 AI 接力行为。
+
 ## 部署后验收 / Post-Deploy Verification
 
 如果要先生成固定托管交接包，运行：

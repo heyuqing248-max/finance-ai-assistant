@@ -1140,6 +1140,7 @@ function shouldAttemptFallback(error = {}) {
     "REAL_AI_MODEL_HTTP_ERROR",
     "REAL_AI_MODEL_TIMEOUT_EMPTY",
     "REAL_AI_MODEL_REQUEST_FAILED",
+    "REAL_AI_MODEL_NOT_CONFIGURED",
   ].includes(error?.code);
 }
 
@@ -1154,6 +1155,7 @@ function modelErrorRetryAfterSeconds(error = {}) {
   if (code === "REAL_AI_MODEL_TIMEOUT_EMPTY") return 2 * 60;
   if (code === "REAL_AI_MODEL_HTTP_ERROR" || code === "REAL_AI_MODEL_REQUEST_FAILED") return 5 * 60;
   if (code === "REAL_AI_MODEL_SAFETY_VALIDATION_FAILED") return 0;
+  if (code === "REAL_AI_MODEL_NOT_CONFIGURED") return 0;
   return 0;
 }
 
@@ -1215,6 +1217,14 @@ function modelErrorPhase(error = {}) {
       finalReason: "请求超时",
     };
   }
+  if (code === "REAL_AI_MODEL_NOT_CONFIGURED") {
+    return {
+      callStatus: "已跳过",
+      outputStatus: "主模型未请求",
+      validationStatus: "未进入校验",
+      finalReason: "主模型未配置",
+    };
+  }
   return {
     callStatus: code ? "调用失败" : "未知",
     outputStatus: "无可用输出",
@@ -1249,6 +1259,9 @@ function modelErrorNextStep(error = {}) {
   }
   if (code === "REAL_AI_MODEL_TIMEOUT_EMPTY") {
     return "缩短输入或稍后重试。";
+  }
+  if (code === "REAL_AI_MODEL_NOT_CONFIGURED") {
+    return "主模型缺少 provider 或 key；系统可继续尝试已配置的备用模型。";
   }
   return "查看技术诊断后决定是否切换模型或稍后重试。";
 }
@@ -2038,11 +2051,22 @@ function modelCallPreflightPlan(config, gate) {
 }
 
 function modelProviderSetupGuide(config) {
-  const localRuntimeReady =
+  const primaryRuntimeReady =
     config.configured &&
     config.supported &&
     config.allowNetwork &&
     config.runtimeMode !== "inactive";
+  const fallbackRuntimeReady = (Array.isArray(config.fallbackProviders)
+    ? config.fallbackProviders
+    : [config.fallbackProvider]
+  ).some(
+    (provider) =>
+      provider?.configured &&
+      provider?.supported &&
+      provider?.allowNetwork &&
+      config.runtimeMode !== "inactive",
+  );
+  const localRuntimeReady = primaryRuntimeReady || fallbackRuntimeReady;
   const setupGroups = [
     {
       id: "modelProvider",
@@ -2209,7 +2233,7 @@ export function createAiProviderAdapter({ env = process.env } = {}) {
   const config = readConfig(env);
   const providerCooldowns = new Map();
   const gate = complianceGate(config);
-  const canCallLiveModel =
+  const canCallPrimaryModel =
     config.configured &&
     config.supported &&
     config.allowNetwork &&
@@ -2225,6 +2249,7 @@ export function createAiProviderAdapter({ env = process.env } = {}) {
       config.runtimeMode !== "inactive",
   );
   const canCallFallbackModel = callableFallbackProviders.length > 0;
+  const canCallLiveModel = canCallPrimaryModel || canCallFallbackModel;
   const modelEvalEvidencePackage = modelEvaluationEvidencePackage();
   const modelReleaseRollbackPackage = modelReleaseRollbackEvidencePackage();
   const modelDataSourceEvidencePackage = dataSourceEvidencePackage();
@@ -2383,7 +2408,7 @@ export function createAiProviderAdapter({ env = process.env } = {}) {
           },
         };
       }
-      if (config.selectedProvider !== "openai-compatible") {
+      if (canCallPrimaryModel && config.selectedProvider !== "openai-compatible") {
         return {
           status: "provider-error",
           error: {
@@ -2392,7 +2417,15 @@ export function createAiProviderAdapter({ env = process.env } = {}) {
           },
         };
       }
-      const primaryResult = await callProviderWithCooldown(input, config, providerCooldowns);
+      const primaryResult = canCallPrimaryModel
+        ? await callProviderWithCooldown(input, config, providerCooldowns)
+        : {
+            status: "provider-error",
+            error: {
+              code: "REAL_AI_MODEL_NOT_CONFIGURED",
+              message: "主模型 provider、模型 id、key、网络开关或 runtime 尚未完整配置；本次跳过主模型。",
+            },
+          };
       if (primaryResult.status === "ok") {
         return {
           ...primaryResult,

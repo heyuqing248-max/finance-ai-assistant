@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v107";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v108";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、448 条自动化回归目标",
+    "后端 API、生产门禁规划、449 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -8611,6 +8611,7 @@ const projectProgress = {
     "AI provider 接力新增后端本机冷却跳过策略，避免重复请求仍在 429 冷却中的模型",
     "AI provider 对缺少核心量化指标的真实模型输出新增一次结构化补齐重试",
     "公网访问状态新增连续健康和备用入口严格证据，AI 诊断显示安全/指标修复路径",
+    "AI 备用模型可在主模型缺 key 时独立进入真实模型接力，避免主模型未配置阻断 Gemini/OpenRouter/Groq",
     "每日开发日志已延续到 2026-06-14",
   ],
   blockers: [

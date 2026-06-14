@@ -225,3 +225,52 @@ test("AI provider relay skips providers still in local cooldown on the next requ
     globalThis.fetch = originalFetch;
   }
 });
+
+test("AI provider relay can use a configured fallback when primary key is missing", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body || "{}");
+    requests.push({ url, model: body.model });
+    assert.equal(body.model, "fallback-only");
+    return jsonResponse(chatPayload(validAnalysis({ actionReference: "仅作观察，等待确认。" })));
+  };
+
+  try {
+    const adapter = createAiProviderAdapter({
+      env: adapterEnv({
+        FINANCE_AI_MODEL_PROVIDER: "",
+        FINANCE_AI_MODEL_API_KEY: "",
+        FINANCE_AI_MODEL_ID: "primary-missing-key",
+        FINANCE_AI_MODEL_ALLOW_NETWORK: "true",
+        FINANCE_AI_MODEL_RUNTIME: "unit-test-runtime",
+        FINANCE_AI_MODEL_FALLBACK_PROVIDER: "openai-compatible",
+        FINANCE_AI_MODEL_FALLBACK_API_KEY: "fallback-only-key",
+        FINANCE_AI_MODEL_FALLBACK_ID: "fallback-only",
+        FINANCE_AI_MODEL_FALLBACK_BASE_URL: "https://fallback-only.test/v1",
+        FINANCE_AI_MODEL_FALLBACK_API_STYLE: "chat-completions",
+        FINANCE_AI_MODEL_FALLBACK_ALLOW_NETWORK: "true",
+      }),
+    });
+
+    assert.equal(adapter.canCallLiveModel, true);
+    assert.equal(adapter.fallbackModelProviders[0].canCallLiveModel, true);
+
+    const result = await adapter.generateStructuredAnalysis(input);
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.providerRelay.fallbackUsed, true);
+    assert.equal(result.providerRelay.used, "fallback-only");
+    assert.deepEqual(
+      result.providerRelay.attempts.map((attempt) => [attempt.role, attempt.model, attempt.finalReason]),
+      [
+        ["主模型", "primary-missing-key", "主模型未配置"],
+        ["备用 1", "fallback-only", "完整 AI 分析已生成"],
+      ],
+    );
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].model, "fallback-only");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
