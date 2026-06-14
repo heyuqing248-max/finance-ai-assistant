@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v117";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v118";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、458 条自动化回归目标",
+    "后端 API、生产门禁规划、459 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -13871,6 +13871,35 @@ function sortNewsForDisplay(items = []) {
   });
 }
 
+function getNewsDedupeKey(item = {}) {
+  const sourceUrl = String(item.sourceUrl || "").trim().toLowerCase().replace(/[#?].*$/, "");
+  if (sourceUrl) return `url:${sourceUrl}`;
+  const normalizedTitle = String(item.title || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+  return normalizedTitle.length >= 8
+    ? `title:${normalizedTitle}`
+    : `title:${normalizedTitle}:${String(item.source || "").toLowerCase()}`;
+}
+
+function dedupeNewsForDisplay(sortedItems = []) {
+  const seen = new Set();
+  const items = [];
+  let duplicateCount = 0;
+  sortedItems.forEach((item) => {
+    const key = getNewsDedupeKey(item);
+    if (seen.has(key)) {
+      duplicateCount += 1;
+      return;
+    }
+    seen.add(key);
+    items.push(item);
+  });
+  return { items, duplicateCount };
+}
+
 function getFirstScreenNewsItems(sortedItems = []) {
   const directItems = sortedItems.filter((item) => item.directStockRelevance || Number(item.relevanceRank) <= 2);
   if (directItems.length) return directItems.slice(0, 5);
@@ -13908,6 +13937,7 @@ function renderNewsItem(news) {
 
 function renderNewsSummary(newsState, visibleCount, hiddenCount) {
   const items = Array.isArray(newsState.items) ? newsState.items : [];
+  const duplicateCount = Number(newsState.duplicateCount) || 0;
   const intelligenceCount = items.filter((item) => item.kind === "intelligence").length;
   const filingCount = items.filter((item) => item.kind === "filing").length;
   const statementCount = items.filter((item) => item.kind === "statement").length;
@@ -13928,6 +13958,7 @@ function renderNewsSummary(newsState, visibleCount, hiddenCount) {
     filingCount ? `公告 ${filingCount}` : "",
     statementCount ? `公开言论 ${statementCount}` : "",
     ...Object.entries(groupCounts).map(([group, count]) => `${group} ${count}`),
+    duplicateCount ? `已去重 ${duplicateCount}` : "",
     hiddenCount ? `另有 ${hiddenCount} 条已折叠` : "",
   ].filter(Boolean);
 
@@ -14033,7 +14064,9 @@ function renderNews(newsState = getNewsState(state.selectedMarket)) {
   }
 
   const enrichedItems = enrichNewsRelevance(Array.isArray(newsState.items) ? newsState.items : []);
-  const sortedItems = sortNewsForDisplay(enrichedItems);
+  const sortedRawItems = sortNewsForDisplay(enrichedItems);
+  const dedupedNews = dedupeNewsForDisplay(sortedRawItems);
+  const sortedItems = dedupedNews.items;
 
   if (sortedItems.length === 0) {
     elements.newsList.innerHTML = `
@@ -14046,7 +14079,7 @@ function renderNews(newsState = getNewsState(state.selectedMarket)) {
     return;
   }
 
-  const displayState = { ...newsState, items: sortedItems };
+  const displayState = { ...newsState, items: sortedItems, duplicateCount: dedupedNews.duplicateCount };
   const visibleItems = getFirstScreenNewsItems(sortedItems);
   const visibleSet = new Set(visibleItems);
   const hiddenItems = sortedItems.filter((item) => !visibleSet.has(item));
