@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  defaultStablePreviewMonitorDurationMs,
+  defaultStablePreviewMonitorIntervalMs,
+  defaultStablePreviewMonitorTimeoutMs,
   inspectStableHostingBlueprint,
   requiredStableHostingEndpoints,
   runStableHostingPreflight,
@@ -97,4 +100,31 @@ test("stable hosting preflight runs fixed URL smoke checks when a stable URL is 
   assert.equal(calls[0].publicUrl, "https://finance-ai-test.onrender.com");
   assert.equal(calls[0].durationMs, 1000);
   assert.deepEqual(result.smokeSummary.checkedEndpoints, requiredStableHostingEndpoints);
+});
+
+test("stable hosting preflight defaults to the 180-second public stability gate", async () => {
+  const calls = [];
+  const result = await runStableHostingPreflight({
+    renderYaml,
+    packageJsonText,
+    stableUrl: "https://finance-ai-test.onrender.com/",
+    healthCheckImpl: async (options) => {
+      calls.push(options);
+      return {
+        ok: true,
+        publicUrl: options.publicUrl,
+        checkedEndpoints: options.checks.map((check) => check.path),
+        iterationCount: 5,
+        lastFailure: null,
+        guidance: "公网预览在监控窗口内持续可用。",
+      };
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].durationMs, defaultStablePreviewMonitorDurationMs);
+  assert.equal(calls[0].intervalMs, defaultStablePreviewMonitorIntervalMs);
+  assert.equal(calls[0].timeoutMs, defaultStablePreviewMonitorTimeoutMs);
+  assert.equal(result.stabilityGate.requiredDurationSeconds, 180);
 });

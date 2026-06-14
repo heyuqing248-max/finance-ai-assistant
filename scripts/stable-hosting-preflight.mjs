@@ -10,6 +10,9 @@ import {
 const DEFAULT_RENDER_YAML_URL = new URL("../render.yaml", import.meta.url);
 const DEFAULT_PACKAGE_JSON_URL = new URL("../package.json", import.meta.url);
 export const defaultStablePreviewUrl = "https://finance-ai-assistant-web.onrender.com";
+export const defaultStablePreviewMonitorDurationMs = 180000;
+export const defaultStablePreviewMonitorIntervalMs = 15000;
+export const defaultStablePreviewMonitorTimeoutMs = 15000;
 
 export const requiredStableHostingEndpoints = defaultPublicPreviewChecks.map((check) => check.path);
 
@@ -235,23 +238,35 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
   }
   return {
     stableUrl: args.get("url") || env.FINANCE_AI_STABLE_PREVIEW_URL || defaultStablePreviewUrl,
-    durationMs: args.get("duration-ms") || env.FINANCE_AI_STABLE_PREVIEW_MONITOR_DURATION_MS || "180000",
-    intervalMs: args.get("interval-ms") || env.FINANCE_AI_STABLE_PREVIEW_MONITOR_INTERVAL_MS || "15000",
-    timeoutMs: args.get("timeout-ms") || env.FINANCE_AI_STABLE_PREVIEW_MONITOR_TIMEOUT_MS || "15000",
+    durationMs:
+      args.get("duration-ms") ||
+      env.FINANCE_AI_STABLE_PREVIEW_MONITOR_DURATION_MS ||
+      String(defaultStablePreviewMonitorDurationMs),
+    intervalMs:
+      args.get("interval-ms") ||
+      env.FINANCE_AI_STABLE_PREVIEW_MONITOR_INTERVAL_MS ||
+      String(defaultStablePreviewMonitorIntervalMs),
+    timeoutMs:
+      args.get("timeout-ms") ||
+      env.FINANCE_AI_STABLE_PREVIEW_MONITOR_TIMEOUT_MS ||
+      String(defaultStablePreviewMonitorTimeoutMs),
   };
 }
 
 export async function runStableHostingPreflight(options = {}) {
   const blueprint = inspectStableHostingBlueprint(options);
   const stableUrl = String(options.stableUrl || "").trim().replace(/\/+$/, "");
+  const durationMs = options.durationMs ?? defaultStablePreviewMonitorDurationMs;
+  const intervalMs = options.intervalMs ?? defaultStablePreviewMonitorIntervalMs;
+  const timeoutMs = options.timeoutMs ?? defaultStablePreviewMonitorTimeoutMs;
   let smoke = null;
 
   if (stableUrl) {
     smoke = await (options.healthCheckImpl || runPublicPreviewHealthCheck)({
       publicUrl: stableUrl,
-      durationMs: options.durationMs,
-      intervalMs: options.intervalMs,
-      timeoutMs: options.timeoutMs,
+      durationMs,
+      intervalMs,
+      timeoutMs,
       checks: options.checks || defaultPublicPreviewChecks,
       localFallbackUrl: options.localFallbackUrl || "http://127.0.0.1:4192",
     });
@@ -302,7 +317,7 @@ export async function runStableHostingPreflight(options = {}) {
       blueprintReady: blueprint.blueprintReady,
       secretsSafe: blueprint.secretsSafe,
       continuousHealthPassed: Boolean(smoke?.ok),
-      requiredDurationSeconds: Number(options.durationMs || 180000) / 1000,
+      requiredDurationSeconds: Number(durationMs) / 1000,
       temporaryTunnelAccepted: false,
       blockers: stabilityGateBlockers,
       userMessage: externalUseReady
