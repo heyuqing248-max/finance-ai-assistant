@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v113";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v114";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、454 条自动化回归目标",
+    "后端 API、生产门禁规划、455 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -16808,168 +16808,178 @@ function renderAiServiceDetails(aiService) {
       <span>${escapeHtml(serviceMode)}</span>
       <span>${escapeHtml(serviceModel)}</span>
     </div>
-    <div class="provider-summary" aria-label="AI Provider 适配器">
-      <span>${escapeHtml(adapterSummary)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 备用模型状态">
-      <span>${escapeHtml(fallbackSummary)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 多备用模型接力">
-      <span>${escapeHtml(fallbackRelaySummary)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 推荐模型与接口">
-      <span>${escapeHtml(modelRuntimeSummary)}</span>
+    <div class="provider-summary" aria-label="AI 普通用户状态摘要">
+      <span>${escapeHtml(canCallAnyModel ? "完整 AI 可检测" : "完整 AI 暂不可用")}</span>
+      <span>${escapeHtml(canCallAnyModel ? "可重新检测真实模型" : "需要模型 key")}</span>
+      <span>规则参考保持可用</span>
     </div>
     <p class="provider-note">${escapeHtml(modelRuntimeNextStep)}</p>
     ${modelConfigForm}
-    ${renderAiModelStrategyPanel(providerAdapter)}
-    <div class="provider-summary" aria-label="AI Provider 接口契约">
-      <span>${escapeHtml(adapterContracts)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 提示词契约">
-      <span>${escapeHtml(promptContract)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 响应 Schema">
-      <span>${escapeHtml(responseSchema)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 输出校验策略">
-      <span>${escapeHtml(responseValidationPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 输出校验边界">
-      <span>${escapeHtml(responseValidationBounds)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 审计策略">
-      <span>${escapeHtml(auditPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 成本限流策略">
-      <span>${escapeHtml(budgetPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 密钥管理策略">
-      <span>${escapeHtml(secretManagementPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 密钥管理控制">
-      <span>${escapeHtml(secretManagementControls)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 来源覆盖策略">
-      <span>${escapeHtml(sourceGroundingPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 注入防护策略">
-      <span>${escapeHtml(promptInjectionDefensePolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 注入防护控制">
-      <span>${escapeHtml(promptInjectionDefenseControls)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 数据最小化策略">
-      <span>${escapeHtml(dataMinimizationPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 数据最小化字段">
-      <span>${escapeHtml(dataMinimizationFields)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 数据最小化控制">
-      <span>${escapeHtml(dataMinimizationControls)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 因子输入策略">
-      <span>${escapeHtml(factorInputPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 因子权重策略">
-      <span>${escapeHtml(factorWeightPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 引用证据策略">
-      <span>${escapeHtml(citationEvidencePolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 引用证据字段">
-      <span>${escapeHtml(citationEvidenceFields)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型评测策略">
-      <span>${escapeHtml(modelEvaluationPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型评测证据包">
-      <span>${escapeHtml(modelEvaluationEvidence)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 真实数据证据包">
-      <span>${escapeHtml(dataSourceEvidence)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 真实数据证据安全边界">
-      <span>${escapeHtml(dataSourceEvidenceSafety)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 因子覆盖证据包">
-      <span>${escapeHtml(factorCoverageEvidence)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 因子覆盖回退规则">
-      <span>${escapeHtml(factorCoverageFallback)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 新鲜度回退证据包">
-      <span>${escapeHtml(dataFreshnessEvidence)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 新鲜度回退字段">
-      <span>${escapeHtml(dataFreshnessFallback)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型超时空白策略">
-      <span>${escapeHtml(modelTimeoutFallback)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型超时禁止兜底">
-      <span>${escapeHtml(modelTimeoutForbiddenFallbacks)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 人工复核策略">
-      <span>${escapeHtml(humanReviewPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 人工复核触发规则">
-      <span>${escapeHtml(humanReviewTriggers)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型发布策略">
-      <span>${escapeHtml(releasePolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型发布回滚证据包">
-      <span>${escapeHtml(modelReleaseRollbackEvidence)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型发布版本锁">
-      <span>${escapeHtml(releaseLocks)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 运行监控策略">
-      <span>${escapeHtml(runtimeMonitoringPolicy)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 运行监控阈值">
-      <span>${escapeHtml(runtimeMonitoringThresholds)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 合规门禁">
-      <span>${escapeHtml(complianceGate)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 调用预检计划">
-      <span>${escapeHtml(preflightPlan)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型 Provider 配置向导">
-      <span>${escapeHtml(modelSetupSummary)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型配置分组">
-      <span>${escapeHtml(modelSetupGroups)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型 Smoke 顺序">
-      <span>${escapeHtml(modelSetupSmokeOrder)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 模型安全边界">
-      <span>${escapeHtml(modelSetupSafety)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI 合规检查">
-      <span>${escapeHtml(complianceChecks)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI Provider 缺失环境变量">
-      <span>${escapeHtml(adapterMissingEnv)}</span>
-    </div>
-    <div class="provider-summary" aria-label="AI Provider 安全标记">
-      <span>${escapeHtml(adapterSafety)}</span>
-    </div>
-    <div class="provider-capabilities" aria-label="AI 服务能力">${capabilities}</div>
-    <p class="provider-warning">AI provider 阻断：${escapeHtml(adapterBlockers)}。</p>
-    ${
-      providerAdapter?.disclaimer
-        ? `<p class="provider-warning">${escapeHtml(providerAdapter.disclaimer)}</p>`
-        : ""
-    }
-    ${
-      aiService.disclaimer
-        ? `<p class="provider-warning">${escapeHtml(aiService.disclaimer)}</p>`
-        : ""
-    }
+    <details class="provider-advanced ai-service-advanced">
+      <summary>展开 AI 技术诊断</summary>
+      <div class="provider-advanced-body">
+        <div class="provider-summary" aria-label="AI Provider 适配器">
+          <span>${escapeHtml(adapterSummary)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 备用模型状态">
+          <span>${escapeHtml(fallbackSummary)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 多备用模型接力">
+          <span>${escapeHtml(fallbackRelaySummary)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 推荐模型与接口">
+          <span>${escapeHtml(modelRuntimeSummary)}</span>
+        </div>
+        ${renderAiModelStrategyPanel(providerAdapter)}
+        <div class="provider-summary" aria-label="AI Provider 接口契约">
+          <span>${escapeHtml(adapterContracts)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 提示词契约">
+          <span>${escapeHtml(promptContract)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 响应 Schema">
+          <span>${escapeHtml(responseSchema)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 输出校验策略">
+          <span>${escapeHtml(responseValidationPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 输出校验边界">
+          <span>${escapeHtml(responseValidationBounds)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 审计策略">
+          <span>${escapeHtml(auditPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 成本限流策略">
+          <span>${escapeHtml(budgetPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 密钥管理策略">
+          <span>${escapeHtml(secretManagementPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 密钥管理控制">
+          <span>${escapeHtml(secretManagementControls)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 来源覆盖策略">
+          <span>${escapeHtml(sourceGroundingPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 注入防护策略">
+          <span>${escapeHtml(promptInjectionDefensePolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 注入防护控制">
+          <span>${escapeHtml(promptInjectionDefenseControls)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 数据最小化策略">
+          <span>${escapeHtml(dataMinimizationPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 数据最小化字段">
+          <span>${escapeHtml(dataMinimizationFields)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 数据最小化控制">
+          <span>${escapeHtml(dataMinimizationControls)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 因子输入策略">
+          <span>${escapeHtml(factorInputPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 因子权重策略">
+          <span>${escapeHtml(factorWeightPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 引用证据策略">
+          <span>${escapeHtml(citationEvidencePolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 引用证据字段">
+          <span>${escapeHtml(citationEvidenceFields)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型评测策略">
+          <span>${escapeHtml(modelEvaluationPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型评测证据包">
+          <span>${escapeHtml(modelEvaluationEvidence)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 真实数据证据包">
+          <span>${escapeHtml(dataSourceEvidence)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 真实数据证据安全边界">
+          <span>${escapeHtml(dataSourceEvidenceSafety)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 因子覆盖证据包">
+          <span>${escapeHtml(factorCoverageEvidence)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 因子覆盖回退规则">
+          <span>${escapeHtml(factorCoverageFallback)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 新鲜度回退证据包">
+          <span>${escapeHtml(dataFreshnessEvidence)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 新鲜度回退字段">
+          <span>${escapeHtml(dataFreshnessFallback)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型超时空白策略">
+          <span>${escapeHtml(modelTimeoutFallback)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型超时禁止兜底">
+          <span>${escapeHtml(modelTimeoutForbiddenFallbacks)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 人工复核策略">
+          <span>${escapeHtml(humanReviewPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 人工复核触发规则">
+          <span>${escapeHtml(humanReviewTriggers)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型发布策略">
+          <span>${escapeHtml(releasePolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型发布回滚证据包">
+          <span>${escapeHtml(modelReleaseRollbackEvidence)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型发布版本锁">
+          <span>${escapeHtml(releaseLocks)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 运行监控策略">
+          <span>${escapeHtml(runtimeMonitoringPolicy)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 运行监控阈值">
+          <span>${escapeHtml(runtimeMonitoringThresholds)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 合规门禁">
+          <span>${escapeHtml(complianceGate)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 调用预检计划">
+          <span>${escapeHtml(preflightPlan)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型 Provider 配置向导">
+          <span>${escapeHtml(modelSetupSummary)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型配置分组">
+          <span>${escapeHtml(modelSetupGroups)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型 Smoke 顺序">
+          <span>${escapeHtml(modelSetupSmokeOrder)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 模型安全边界">
+          <span>${escapeHtml(modelSetupSafety)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI 合规检查">
+          <span>${escapeHtml(complianceChecks)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI Provider 缺失环境变量">
+          <span>${escapeHtml(adapterMissingEnv)}</span>
+        </div>
+        <div class="provider-summary" aria-label="AI Provider 安全标记">
+          <span>${escapeHtml(adapterSafety)}</span>
+        </div>
+        <div class="provider-capabilities" aria-label="AI 服务能力">${capabilities}</div>
+        <p class="provider-warning">AI provider 阻断：${escapeHtml(adapterBlockers)}。</p>
+        ${
+          providerAdapter?.disclaimer
+            ? `<p class="provider-warning">${escapeHtml(providerAdapter.disclaimer)}</p>`
+            : ""
+        }
+        ${
+          aiService.disclaimer
+            ? `<p class="provider-warning">${escapeHtml(aiService.disclaimer)}</p>`
+            : ""
+        }
+      </div>
+    </details>
   `;
 }
 
@@ -16997,7 +17007,7 @@ function renderAiServiceState(status = localStorage.getItem("apiHealthStatus") |
         : "AI 服务状态待确认";
     const description = canCallLiveModel
       ? message || "当前真实 AI 模型 runtime 已可用于本机 smoke；输出仍必须显示来源、概率和风险提示。"
-      : message || "当前只返回 AI provider 合同与配置状态；没有真实模型 key 时不会展示样例或 mock 建议。";
+      : message || "完整 AI 还需要模型 key；未配置前不会展示样例或 mock 建议，页面会保留真实数据规则参考。";
     elements.aiServiceState.innerHTML = `
       <div class="state-panel ${panelClass}">
         <strong>${escapeHtml(title)}</strong>
@@ -20253,7 +20263,7 @@ async function checkBackendHealth(options = {}) {
     renderProjectProgressState();
     const aiConnectedMessage = canCallAnyConfiguredAiModel(aiService)
       ? `真实 AI 模型已配置为 ${getActiveAiModelLabel(aiService)}；输出仍需通过结构化校验、来源引用和风险提示。`
-      : "真实 AI 模型待配置；当前只显示 provider 合同和免费模型配置入口，不展示 mock 或样例建议。";
+      : "完整 AI 还需要模型 key；未配置前不会展示样例或 mock 建议，页面会保留真实数据规则参考。";
     renderAiServiceState(
       "connected",
       aiService ? aiConnectedMessage : "后端已连接，但 AI 服务能力暂未返回。",

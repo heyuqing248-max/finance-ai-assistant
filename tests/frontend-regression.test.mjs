@@ -2886,7 +2886,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /454 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /455 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2902,7 +2902,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /454 条自动化回归/);
+  assert.match(progressHtml, /455 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -2917,7 +2917,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /454 条自动化回归/);
+  assert.match(progressHtml, /455 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -2932,7 +2932,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /454 条自动化回归/);
+  assert.match(progressHtml, /455 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -3968,10 +3968,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v113",
+    "finance-ai-assistant-v114",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v113/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v114/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -3988,7 +3988,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v113",
+    "finance-ai-assistant-v114",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -19321,7 +19321,7 @@ test("connected AI settings render local model key setup without exposing a key"
   });
 
   assert.match(app.byId.get("aiServiceState").innerHTML, /真实 AI 模型待配置/);
-  assert.match(app.byId.get("aiServiceState").innerHTML, /没有真实模型 key 时不会展示样例或 mock 建议/);
+  assert.match(app.byId.get("aiServiceState").innerHTML, /完整 AI 还需要模型 key/);
   assert.match(app.byId.get("aiServiceState").innerHTML, /严格真实数据空白模式/);
   assert.match(app.byId.get("aiServiceState").innerHTML, /本机 AI 模型配置/);
   assert.match(app.byId.get("aiServiceState").innerHTML, /备用模型状态未返回|备用模型 未配置/);
@@ -19340,6 +19340,9 @@ test("connected AI settings render local model key setup without exposing a key"
   assert.match(app.byId.get("aiServiceState").innerHTML, /短期可行性：85\/100/);
   assert.match(app.byId.get("aiServiceState").innerHTML, /从零训练模型：10\/100/);
   assert.match(app.byId.get("aiServiceState").innerHTML, /当前不建议先独立训练基础模型/);
+  assert.match(app.byId.get("aiServiceState").innerHTML, /<details class="provider-advanced ai-service-advanced">/);
+  assert.match(app.byId.get("aiServiceState").innerHTML, /展开 AI 技术诊断/);
+  assert.doesNotMatch(app.byId.get("aiServiceState").innerHTML, /<details class="provider-advanced ai-service-advanced"\s+open/);
   assert.doesNotMatch(app.byId.get("aiServiceState").innerHTML, /AI 分析服务已连接/);
   assert.doesNotMatch(app.byId.get("aiServiceState").innerHTML, /secret-model-key/);
 });
