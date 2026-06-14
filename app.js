@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v109";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v110";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8555,7 +8555,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、450 条自动化回归目标",
+    "后端 API、生产门禁规划、451 条自动化回归目标",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -8613,6 +8613,7 @@ const projectProgress = {
     "公网访问状态新增连续健康和备用入口严格证据，AI 诊断显示安全/指标修复路径",
     "AI 备用模型可在主模型缺 key 时独立进入真实模型接力，避免主模型未配置阻断 Gemini/OpenRouter/Groq",
     "固定 Render 网址新增线上状态检查，可核对版本、接口、AI 接力和完整 AI 输出状态",
+    "AI 备用模型诊断会显示每个槽位缺少的 Render Dashboard 变量",
     "每日开发日志已延续到 2026-06-14",
   ],
   blockers: [
@@ -16519,6 +16520,18 @@ const freeAiModelProviderPresets = {
   },
 };
 
+function formatAiFallbackSetupStatus(provider = {}) {
+  if (provider.setupStatus) return provider.setupStatus;
+  if (Array.isArray(provider.missingEnvVars) && provider.missingEnvVars.length) {
+    return `缺少 ${provider.missingEnvVars.join(" / ")}`;
+  }
+  if (provider.canCallLiveModel) return "可接力";
+  if (provider.configured === false) return "缺少 key 或模型 id";
+  if (provider.allowNetwork === false) return "网络开关未启用";
+  if (provider.runtimeReady === false) return "runtime 未启用";
+  return "待配置";
+}
+
 function renderAiServiceDetails(aiService) {
   if (!aiService) {
     return `
@@ -16552,13 +16565,13 @@ function renderAiServiceDetails(aiService) {
     : "AI provider 适配器未返回";
   const fallbackProvider = providerAdapter?.fallbackModelProvider;
   const fallbackSummary = fallbackProvider
-    ? `备用模型 ${fallbackProvider.configured ? "已配置" : "未配置"} · ${fallbackProvider.modelId || "gemini-2.5-flash"} · ${fallbackProvider.apiStyle || "chat-completions"} · ${fallbackProvider.canCallLiveModel ? "可接力" : "待 key/网络"}`
+    ? `备用模型 ${fallbackProvider.configured ? "已配置" : "未配置"} · ${fallbackProvider.modelId || "gemini-2.5-flash"} · ${fallbackProvider.apiStyle || "chat-completions"} · ${formatAiFallbackSetupStatus(fallbackProvider)}`
     : "备用模型状态未返回";
   const fallbackRelaySummary = providerAdapter?.fallbackModelProviders?.length
     ? providerAdapter.fallbackModelProviders
         .map(
           (provider) =>
-            `${provider.label || provider.id || "备用"}:${provider.configured ? "已配置" : "未配置"}${provider.canCallLiveModel ? "/可接力" : ""}${provider.modelId ? `/${provider.modelId}` : ""}`,
+            `${provider.label || provider.id || "备用"}:${provider.configured ? "已配置" : "未配置"}/${formatAiFallbackSetupStatus(provider)}${provider.modelId ? `/${provider.modelId}` : ""}`,
         )
         .join(" / ")
     : fallbackSummary;

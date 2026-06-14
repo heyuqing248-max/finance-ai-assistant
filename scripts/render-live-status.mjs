@@ -82,6 +82,35 @@ function summarizeEndpoint(result, extra = {}) {
   };
 }
 
+function fallbackEnvPrefixFromId(id = "", index = 0) {
+  if (id === "fallback" || index === 0) return "FINANCE_AI_MODEL_FALLBACK";
+  if (id === "fallback2" || index === 1) return "FINANCE_AI_MODEL_FALLBACK2";
+  if (id === "fallback3" || index === 2) return "FINANCE_AI_MODEL_FALLBACK3";
+  return `FINANCE_AI_MODEL_FALLBACK${index + 1}`;
+}
+
+function fallbackMissingEnvVars(provider = {}, index = 0) {
+  if (Array.isArray(provider.missingEnvVars) && provider.missingEnvVars.length) {
+    return provider.missingEnvVars.filter((item) => typeof item === "string" && item);
+  }
+  const prefix = fallbackEnvPrefixFromId(provider.id || "", index);
+  return [
+    provider.configured === true || provider.baseUrlStatus === "configured-redacted" ? "" : `${prefix}_API_KEY`,
+    provider.modelId ? "" : `${prefix}_ID`,
+  ].filter(Boolean);
+}
+
+function fallbackSetupStatus(provider = {}, index = 0) {
+  if (provider.setupStatus) return provider.setupStatus;
+  const missing = fallbackMissingEnvVars(provider, index);
+  if (missing.length) return `缺少 ${missing.join(" / ")}`;
+  if (provider.supported === false) return "provider 未注册";
+  if (provider.allowNetwork === false) return "网络开关未启用";
+  if (provider.runtimeReady === false) return "runtime 未启用";
+  if (provider.canCallLiveModel === true) return "可接力";
+  return "待配置";
+}
+
 function summarizeAiAdapter(payload = {}) {
   const adapter = payload.providerAdapter || {};
   const fallbackProviders = Array.isArray(adapter.fallbackModelProviders)
@@ -92,6 +121,25 @@ function summarizeAiAdapter(payload = {}) {
   const primaryReady =
     adapter.configured === true && adapter.networkEnabled === true && adapter.runtimeMode !== "inactive";
   const aiRelayReady = adapter.canCallLiveModel === true || callableFallbacks.length > 0;
+  const fallbackRows = fallbackProviders.map((provider, index) => {
+    const missingEnvVars = fallbackMissingEnvVars(provider, index);
+    return {
+      id: provider.id || "",
+      label: provider.label || "",
+      provider: provider.provider || "",
+      modelId: provider.modelId || "",
+      configured: provider.configured === true,
+      supported: provider.supported !== false,
+      canCallLiveModel: provider.canCallLiveModel === true,
+      apiStyle: provider.apiStyle || "",
+      missingEnvVars,
+      setupStatus: fallbackSetupStatus(provider, index),
+    };
+  });
+  const missingDashboardSecretKeys = [
+    ...(Array.isArray(adapter.missingEnvVars) ? adapter.missingEnvVars : []),
+    ...fallbackRows.flatMap((provider) => provider.missingEnvVars),
+  ].filter((item, index, list) => item && list.indexOf(item) === index);
 
   return {
     ok: aiRelayReady,
@@ -104,21 +152,15 @@ function summarizeAiAdapter(payload = {}) {
     canCallLiveModel: adapter.canCallLiveModel === true,
     primaryReady,
     missingEnvVars: Array.isArray(adapter.missingEnvVars) ? adapter.missingEnvVars : [],
+    missingDashboardSecretKeys,
     fallbackReadyCount: callableFallbacks.length,
     fallbackConfiguredCount: configuredFallbacks.length,
-    fallbackProviders: fallbackProviders.map((provider) => ({
-      id: provider.id || "",
-      label: provider.label || "",
-      provider: provider.provider || "",
-      modelId: provider.modelId || "",
-      configured: provider.configured === true,
-      supported: provider.supported !== false,
-      canCallLiveModel: provider.canCallLiveModel === true,
-      apiStyle: provider.apiStyle || "",
-    })),
+    fallbackProviders: fallbackRows,
     guidance: aiRelayReady
       ? "AI 接力运行配置已在公开接口中显示为可调用；完整输出仍取决于 provider 额度、速率限制和结构化校验。"
-      : "公开接口显示 AI 主模型和备用模型都不可调用；请在 Render Dashboard 填入模型密钥并重新部署。",
+      : missingDashboardSecretKeys.length
+        ? `公开接口显示 AI 主模型和备用模型都不可调用；请在 Render Dashboard 填入这些变量并重新部署：${missingDashboardSecretKeys.join(" / ")}。`
+        : "公开接口显示 AI 主模型和备用模型都不可调用；请在 Render Dashboard 填入模型密钥并重新部署。",
   };
 }
 
@@ -158,7 +200,10 @@ function buildNextSteps({ deployedLatest, ai, analysis }) {
     nextSteps.push("Render 线上仍不是本地最新版本；请触发 Render redeploy，或确认 autoDeploy 已生效。");
   }
   if (!ai.ok) {
-    nextSteps.push("AI 接力不可调用；请在 Render Dashboard 添加模型密钥，保存后 redeploy。");
+    const missing = ai.missingDashboardSecretKeys?.length
+      ? `缺少 ${ai.missingDashboardSecretKeys.join(" / ")}；`
+      : "";
+    nextSteps.push(`AI 接力不可调用；${missing}请在 Render Dashboard 添加模型密钥，保存后 redeploy。`);
   }
   if (ai.ok && !analysis.fullAiOutputReady) {
     nextSteps.push("AI 接力配置可调用后，继续复测完整 AI 输出；若仍为规则参考，查看 provider 额度、429 冷却和结构化校验失败原因。");

@@ -4108,6 +4108,7 @@ test("ai-provider adapter endpoint reports evaluation and release evidence packa
     factorCoverageEvidencePackage,
     dataFreshnessFallbackEvidencePackage,
     modelTimeoutFallbackPolicy,
+    fallbackModelProviders,
   } = response.body.providerAdapter;
   assert.equal(modelEvaluationEvidencePackage.status, "defined");
   assert.equal(modelEvaluationEvidencePackage.mode, "dry-run-no-model-certification");
@@ -4141,6 +4142,9 @@ test("ai-provider adapter endpoint reports evaluation and release evidence packa
   assert.equal(modelTimeoutFallbackPolicy.errorCode, "REAL_AI_MODEL_TIMEOUT_EMPTY");
   assert.equal(modelTimeoutFallbackPolicy.canUseFixtureFallback, false);
   assert.equal(modelTimeoutFallbackPolicy.keepsUserVisibleBlankState, true);
+  assert.ok(Array.isArray(fallbackModelProviders));
+  assert.ok(fallbackModelProviders[0].missingEnvVars.includes("FINANCE_AI_MODEL_FALLBACK_API_KEY"));
+  assert.match(fallbackModelProviders[0].setupStatus, /FINANCE_AI_MODEL_FALLBACK_API_KEY/);
 });
 
 test("ai-provider adapter becomes ready after config, audit, budget, source, and compliance gates", () => {

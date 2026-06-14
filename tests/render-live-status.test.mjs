@@ -30,7 +30,7 @@ const healthyBaseRoutes = {
   "/api/project/progress": response(200, {
     progress: {
       updatedAt: "2026-06-14",
-      completed: ["后端 API、生产门禁规划、450 条自动化回归目标"],
+      completed: ["后端 API、生产门禁规划、451 条自动化回归目标"],
     },
   }),
 };
@@ -38,7 +38,7 @@ const healthyBaseRoutes = {
 test("render live status reports stale live bundle when Render has not redeployed", async () => {
   const status = await buildRenderLiveStatus({
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
-    expectedAppVersion: 109,
+    expectedAppVersion: 110,
     fetchImpl: createFetch({
       "/": response(200, '<script src="./app.js?v=107"></script>'),
       ...healthyBaseRoutes,
@@ -61,7 +61,7 @@ test("render live status reports stale live bundle when Render has not redeploye
 
   assert.equal(status.ok, false);
   assert.equal(status.liveAppVersion, 107);
-  assert.equal(status.expectedAppVersion, 109);
+  assert.equal(status.expectedAppVersion, 110);
   assert.equal(status.deployedLatest, false);
   assert.match(status.nextSteps.join(" "), /Render 线上仍不是本地最新版本/);
 });
@@ -69,9 +69,9 @@ test("render live status reports stale live bundle when Render has not redeploye
 test("render live status accepts fallback-only AI relay when primary key is missing", async () => {
   const status = await buildRenderLiveStatus({
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
-    expectedAppVersion: 109,
+    expectedAppVersion: 110,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=109"></script>'),
+      "/": response(200, '<script src="./app.js?v=110"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -109,6 +109,7 @@ test("render live status accepts fallback-only AI relay when primary key is miss
   assert.equal(status.ai.ok, true);
   assert.equal(status.ai.fallbackReadyCount, 1);
   assert.equal(status.ai.missingEnvVars.includes("FINANCE_AI_MODEL_API_KEY"), true);
+  assert.deepEqual(status.ai.fallbackProviders[0].missingEnvVars, []);
   assert.equal(status.analysis.fullAiOutputReady, false);
   assert.match(status.nextSteps.join(" "), /继续复测完整 AI 输出/);
 });
@@ -116,9 +117,9 @@ test("render live status accepts fallback-only AI relay when primary key is miss
 test("render live status blocks when all AI relay keys are missing", async () => {
   const status = await buildRenderLiveStatus({
     stableUrl: "https://finance-ai-assistant-web.onrender.com",
-    expectedAppVersion: 109,
+    expectedAppVersion: 110,
     fetchImpl: createFetch({
-      "/": response(200, '<script src="./app.js?v=109"></script>'),
+      "/": response(200, '<script src="./app.js?v=110"></script>'),
       ...healthyBaseRoutes,
       "/api/ai-services/provider-adapter": response(200, {
         providerAdapter: {
@@ -151,5 +152,8 @@ test("render live status blocks when all AI relay keys are missing", async () =>
   assert.equal(status.deployedLatest, true);
   assert.equal(status.ai.ok, false);
   assert.equal(status.ai.fallbackReadyCount, 0);
+  assert.ok(status.ai.missingDashboardSecretKeys.includes("FINANCE_AI_MODEL_API_KEY"));
+  assert.ok(status.ai.missingDashboardSecretKeys.includes("FINANCE_AI_MODEL_FALLBACK_API_KEY"));
+  assert.ok(status.ai.fallbackProviders[0].setupStatus.includes("FINANCE_AI_MODEL_FALLBACK_API_KEY"));
   assert.match(status.nextSteps.join(" "), /AI 接力不可调用/);
 });

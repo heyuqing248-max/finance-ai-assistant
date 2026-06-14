@@ -1132,6 +1132,27 @@ function fallbackConfigFromPrimary(config = {}, fallbackProvider = null) {
   };
 }
 
+function fallbackEnvPrefix(index = 1) {
+  return index <= 1 ? "FINANCE_AI_MODEL_FALLBACK" : `FINANCE_AI_MODEL_FALLBACK${index}`;
+}
+
+function fallbackMissingEnvVars(provider = {}, index = 1) {
+  const prefix = fallbackEnvPrefix(index);
+  return [
+    provider.apiKey ? "" : `${prefix}_API_KEY`,
+    provider.selectedModel ? "" : `${prefix}_ID`,
+  ].filter(Boolean);
+}
+
+function fallbackSetupStatus(provider = {}, index = 1, runtimeMode = "inactive") {
+  const missing = fallbackMissingEnvVars(provider, index);
+  if (missing.length) return `缺少 ${missing.join(" / ")}`;
+  if (provider.supported === false) return "provider 未注册";
+  if (provider.allowNetwork === false) return "网络开关未启用";
+  if (runtimeMode === "inactive") return "runtime 未启用";
+  return "可接力";
+}
+
 function shouldAttemptFallback(error = {}) {
   return [
     "REAL_AI_MODEL_PROVIDER_COOLDOWN_ACTIVE",
@@ -2299,6 +2320,10 @@ export function createAiProviderAdapter({ env = process.env } = {}) {
       apiStyle: config.fallbackProvider.apiStyle || "chat-completions",
       configured: config.fallbackProvider.configured,
       supported: config.fallbackProvider.supported,
+      missingEnvVars: fallbackMissingEnvVars(config.fallbackProvider, 1),
+      allowNetwork: config.fallbackProvider.allowNetwork !== false,
+      runtimeReady: config.runtimeMode !== "inactive",
+      setupStatus: fallbackSetupStatus(config.fallbackProvider, 1, config.runtimeMode),
       canCallLiveModel:
         config.fallbackProvider.configured &&
         config.fallbackProvider.supported &&
@@ -2308,21 +2333,29 @@ export function createAiProviderAdapter({ env = process.env } = {}) {
     fallbackModelProviders: (Array.isArray(config.fallbackProviders)
       ? config.fallbackProviders
       : [config.fallbackProvider]
-    ).map((provider, index) => ({
-      id: provider.slot || (index === 0 ? "fallback" : `fallback${index + 1}`),
-      label: provider.label || `备用模型 ${index + 1}`,
-      provider: provider.selectedProvider || "openai-compatible",
-      modelId: provider.selectedModel || (index === 0 ? defaultReliableModelId : ""),
-      baseUrlStatus: provider.configured ? "configured-redacted" : "unconfigured",
-      apiStyle: provider.apiStyle || "chat-completions",
-      configured: provider.configured === true,
-      supported: provider.supported !== false,
-      canCallLiveModel:
-        provider.configured === true &&
-        provider.supported !== false &&
-        provider.allowNetwork !== false &&
-        config.runtimeMode !== "inactive",
-    })),
+    ).map((provider, index) => {
+      const slotIndex = index + 1;
+      const missingEnvVars = fallbackMissingEnvVars(provider, slotIndex);
+      return {
+        id: provider.slot || (index === 0 ? "fallback" : `fallback${slotIndex}`),
+        label: provider.label || `备用模型 ${slotIndex}`,
+        provider: provider.selectedProvider || "openai-compatible",
+        modelId: provider.selectedModel || (index === 0 ? defaultReliableModelId : ""),
+        baseUrlStatus: provider.configured ? "configured-redacted" : "unconfigured",
+        apiStyle: provider.apiStyle || "chat-completions",
+        configured: provider.configured === true,
+        supported: provider.supported !== false,
+        missingEnvVars,
+        allowNetwork: provider.allowNetwork !== false,
+        runtimeReady: config.runtimeMode !== "inactive",
+        setupStatus: fallbackSetupStatus(provider, slotIndex, config.runtimeMode),
+        canCallLiveModel:
+          provider.configured === true &&
+          provider.supported !== false &&
+          provider.allowNetwork !== false &&
+          config.runtimeMode !== "inactive",
+      };
+    }),
     supportedProviderIds,
     configured: config.configured,
     supported: config.supported,
