@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>固定托管交接包 / Stable Hosting Handoff</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #182622;
+        --muted: #60716c;
+        --line: #d8e8e2;
+        --panel: #f7fbf9;
+        --accent: #0f6b5f;
+        --warn: #8a5a0a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: #ffffff;
+      }
+      main {
+        width: min(1040px, calc(100% - 32px));
+        margin: 32px auto 56px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(30px, 4vw, 46px);
+        letter-spacing: 0;
+      }
+      h2 {
+        margin: 28px 0 12px;
+        font-size: 22px;
+      }
+      p { color: var(--muted); line-height: 1.65; }
+      code {
+        overflow-wrap: anywhere;
+        color: var(--accent);
+      }
+      .summary,
+      .section {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 18px;
+        margin-top: 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      .item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+        background: #ffffff;
+      }
+      .item span,
+      .label {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .item strong {
+        display: block;
+        margin: 4px 0 6px;
+      }
+      .command {
+        display: block;
+        padding: 12px;
+        border-radius: 8px;
+        background: #10231f;
+        color: #e9fff8;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .warning {
+        color: var(--warn);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      ol,
+      ul {
+        padding-left: 22px;
+        line-height: 1.7;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>AI 财经情报助手 / AI Financial Intelligence Assistant</p>
+      <h1>固定托管交接包 / Stable Hosting Handoff</h1>
+      <section class="summary" aria-label="交接摘要">
+        <strong>状态 / Status：handoff-ready-needs-fixed-url</strong>
+        <p>下一步是在 Render 创建固定 Web Service，按 dashboardSecrets 填入密钥，再用 stableUrlSmoke 命令跑 2-3 分钟连续验收。</p>
+        <p>Next, create the fixed Render Web Service, enter secrets in the dashboard, then run stableUrlSmoke for a 2-3 minute continuous validation.</p>
+        <p class="warning">密钥只在 Render Dashboard 手工填写；本文件不包含、不读取、不复制任何真实 API key。</p>
+        <p class="warning">Enter secrets manually in Render Dashboard only. This file does not contain, read, or copy real API keys.</p>
+      </section>
+
+      <h2>访问层级 / Access Levels</h2>
+      <section class="grid" aria-label="访问层级">
+        
+            <article class="item">
+              <span>P1</span>
+              <strong>固定线上测试环境</strong>
+              <p><code>missing</code></p>
+              <p>missing · 外部测试和演示首选入口。</p>
+            </article>
+          
+            <article class="item">
+              <span>P2</span>
+              <strong>临时 lhr.life 隧道</strong>
+              <p><code>https://b9876ecf9f9450.lhr.life</code></p>
+              <p>healthy-temporary · 只用于短时间测试；可能轮换或 503。</p>
+            </article>
+          
+            <article class="item">
+              <span>P3</span>
+              <strong>本机备用地址</strong>
+              <p><code>http://127.0.0.1:4192</code></p>
+              <p>healthy · 只能在本机访问，用于公网隧道失败时继续排查。</p>
+            </article>
+          
+      </section>
+
+      <h2>备用入口 / Standby Links</h2>
+      <section class="grid" aria-label="备用入口">
+        
+            <article class="item">
+              <span>healthy</span>
+              <strong>备用临时入口 1</strong>
+              <p><code>https://a0141908b65573.lhr.life</code></p>
+              <p>主入口掉线时优先复制这个备用链接继续测试。</p>
+              <p class="muted">窗口 15s · 轮次 1 · 瞬断 </p>
+            </article>
+          
+            <article class="item">
+              <span>healthy</span>
+              <strong>备用临时入口 2</strong>
+              <p><code>https://a8a0c46026fd50.lhr.life</code></p>
+              <p>主入口掉线时优先复制这个备用链接继续测试。</p>
+              <p class="muted">窗口 15s · 轮次 1 · 瞬断 </p>
+            </article>
+          
+      </section>
+
+      <h2>临时入口健康证据 / Temporary Health Evidence</h2>
+      <section class="section" aria-label="临时入口健康证据">
+        <div class="grid">
+          <div class="item"><span>连续门禁 / Continuous Gate</span><strong>passed</strong></div>
+          <div class="item"><span>检查窗口 / Window</span><strong>180s</strong></div>
+          <div class="item"><span>检查轮次 / Iterations</span><strong>9</strong></div>
+          <div class="item"><span>瞬断 / Transient Failures</span><strong></strong></div>
+        </div>
+        <p>当前公网预览状态新鲜且健康。</p>
+        <ul>
+          <li><code>/</code></li><li><code>/health</code></li><li><code>/api/health</code></li><li><code>/api/analysis?symbol=MSFT&amp;riskProfile=balanced</code></li><li><code>/api/stocks/search?q=Microsoft</code></li>
+        </ul>
+      </section>
+
+      <h2>Render 服务 / Render Service</h2>
+      <section class="section" aria-label="Render 服务">
+        <div class="grid">
+          <div class="item"><span>服务名 / Service</span><strong>finance-ai-assistant-web</strong></div>
+          <div class="item"><span>蓝图 / Blueprint</span><strong>render.yaml</strong></div>
+          <div class="item"><span>启动 / Start</span><strong>npm start</strong></div>
+          <div class="item"><span>健康检查 / Health</span><strong>/health</strong></div>
+        </div>
+      </section>
+
+      <h2>运行变量 / Runtime Variables</h2>
+      <section class="grid" aria-label="运行变量">
+        
+            <article class="item">
+              <span>ready</span>
+              <strong>FINANCE_AI_PUBLIC_HOST</strong>
+              <p>Expected: <code>0.0.0.0</code></p>
+            </article>
+          
+            <article class="item">
+              <span>ready</span>
+              <strong>FINANCE_AI_MARKET_DATA_PROVIDER</strong>
+              <p>Expected: <code>multi-free</code></p>
+            </article>
+          
+            <article class="item">
+              <span>ready</span>
+              <strong>FINANCE_AI_NEWS_PROVIDER</strong>
+              <p>Expected: <code>multi-free-news</code></p>
+            </article>
+          
+            <article class="item">
+              <span>ready</span>
+              <strong>FINANCE_AI_FILINGS_PROVIDER</strong>
+              <p>Expected: <code>multi-free-filings</code></p>
+            </article>
+          
+            <article class="item">
+              <span>ready</span>
+              <strong>FINANCE_AI_MACRO_PROVIDER</strong>
+              <p>Expected: <code>world-bank-open-data</code></p>
+            </article>
+          
+      </section>
+
+      <h2>Dashboard 密钥 / Dashboard Secrets</h2>
+      <section class="grid" aria-label="Dashboard 密钥">
+        
+            <article class="item">
+              <span>Render Dashboard / Environment</span>
+              <strong>FINANCE_AI_TWELVE_DATA_API_KEY</strong>
+              <p>sync:false; never commit the value</p>
+            </article>
+          
+            <article class="item">
+              <span>Render Dashboard / Environment</span>
+              <strong>FINANCE_AI_ALPHA_VANTAGE_API_KEY</strong>
+              <p>sync:false; never commit the value</p>
+            </article>
+          
+            <article class="item">
+              <span>Render Dashboard / Environment</span>
+              <strong>FINANCE_AI_NEWS_API_KEY</strong>
+              <p>sync:false; never commit the value</p>
+            </article>
+          
+            <article class="item">
+              <span>Render Dashboard / Environment</span>
+              <strong>FINANCE_AI_MODEL_API_KEY</strong>
+              <p>sync:false; never commit the value</p>
+            </article>
+          
+            <article class="item">
+              <span>Render Dashboard / Environment</span>
+              <strong>FINANCE_AI_MODEL_FALLBACK_API_KEY</strong>
+              <p>sync:false; never commit the value</p>
+            </article>
+          
+            <article class="item">
+              <span>Render Dashboard / Environment</span>
+              <strong>FINANCE_AI_MODEL_FALLBACK2_API_KEY</strong>
+              <p>sync:false; never commit the value</p>
+            </article>
+          
+            <article class="item">
+              <span>Render Dashboard / Environment</span>
+              <strong>FINANCE_AI_MODEL_FALLBACK3_API_KEY</strong>
+              <p>sync:false; never commit the value</p>
+            </article>
+          
+      </section>
+
+      <h2>执行步骤 / Steps</h2>
+      <section class="section" aria-label="执行步骤">
+        <ol>
+          <li>在 Render 创建或打开 <code>finance-ai-assistant-web</code> Web Service。</li>
+          <li>确认服务使用 <code>render.yaml</code>，启动命令为 <code>npm start</code>。</li>
+          <li>把 Dashboard 密钥逐项手工填入 Render Environment 页面，保留仓库文件为空值。</li>
+          <li>部署完成后复制固定 URL，运行下面的固定 URL 连续验收命令。</li>
+        </ol>
+        <ol>
+          <li>Create or open the Render Web Service <code>finance-ai-assistant-web</code>.</li>
+          <li>Confirm it uses <code>render.yaml</code> and starts with <code>npm start</code>.</li>
+          <li>Paste dashboard secrets manually in Render Environment and keep repository files blank.</li>
+          <li>After deploy, copy the fixed URL and run the fixed URL validation command below.</li>
+        </ol>
+      </section>
+
+      <h2>命令 / Commands</h2>
+      <section class="section" aria-label="命令">
+        <p><span class="label">本地预检 / Local preflight</span><code class="command">npm run check:stable-hosting</code></p>
+        <p><span class="label">固定 URL 验收 / Fixed URL validation</span><code class="command">FINANCE_AI_STABLE_PREVIEW_URL=https://your-render-url.onrender.com npm run check:stable-hosting</code></p>
+        <p><span class="label">临时公网兜底 / Temporary public fallback</span><code class="command">npm run dev:public-preview:supervise</code></p>
+        <p><span class="label">当前入口报告 / Current access report</span><code class="command">npm run access:public-preview</code></p>
+      </section>
+
+      <h2>验收标准 / Acceptance Criteria</h2>
+      <section class="section" aria-label="验收标准">
+        <p>固定 URL 的所有关键端点必须在 2-3 分钟窗口内持续返回 200。</p>
+        <ul>
+          <li><code>/</code></li><li><code>/health</code></li><li><code>/api/health</code></li><li><code>/api/analysis?symbol=MSFT&amp;riskProfile=balanced</code></li><li><code>/api/stocks/search?q=Microsoft</code></li>
+        </ul>
+      </section>
+
+      <h2>当前阻断 / Current Blockers</h2>
+      <section class="section" aria-label="当前阻断">
+        <ul>
+          <li>尚未创建或填写固定线上测试 URL。</li><li>Dashboard 密钥值无法在仓库内验证，创建服务后必须人工确认。</li><li>当前 lhr.life 只作为临时备用，不能替代固定托管。</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

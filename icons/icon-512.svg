@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="AI 财经情报助手图标">
+  <rect width="512" height="512" rx="96" fill="#0f6b5f"/>
+  <path d="M112 330h288" stroke="#d9f0e8" stroke-width="28" stroke-linecap="round"/>
+  <path d="M140 288l70-76 64 48 102-118" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="140" cy="288" r="22" fill="#b8860b"/>
+  <circle cx="210" cy="212" r="22" fill="#b8860b"/>
+  <circle cx="274" cy="260" r="22" fill="#b8860b"/>
+  <circle cx="376" cy="142" r="22" fill="#b8860b"/>
+</svg>

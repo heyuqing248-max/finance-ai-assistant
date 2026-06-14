@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f6b5f" />
+    <meta
+      name="description"
+      content="AI 财经情报与股票分析助手，提供新闻聚合、自选股、模型参考概率和风险提示。"
+    />
+    <title>AI 财经情报助手</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">AI</div>
+          <div>
+            <strong>财经情报助手</strong>
+            <span>模型参考 · 风险提示</span>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="页面导航">
+          <a class="nav-item is-active" href="#overview">首页</a>
+          <a class="nav-item" href="#markets">市场</a>
+          <a class="nav-item" href="#watchlist">自选股</a>
+          <a class="nav-item" href="#analysis">AI 分析</a>
+          <a class="nav-item" href="#settings">设置</a>
+        </nav>
+
+        <section class="notice-panel" aria-label="合规提示">
+          <strong>合规提示</strong>
+          <p>所有概率均为模型参考，不构成投资建议或收益承诺。</p>
+        </section>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">A 股 · 港股 · 美股</p>
+            <h1>今天最重要的财经信号</h1>
+          </div>
+          <button class="ghost-button" id="installButton" type="button" hidden>安装到设备</button>
+        </header>
+
+        <section class="control-strip" aria-label="股票搜索与偏好">
+          <label class="search-box">
+            <span>搜索股票</span>
+            <input id="stockSearch" type="search" placeholder="输入：腾讯、贵州茅台、Apple..." />
+          </label>
+
+          <label class="select-box">
+            <span>分析风格</span>
+            <select id="riskProfile">
+              <option value="balanced">平衡型</option>
+              <option value="conservative">稳健型</option>
+              <option value="aggressive">积极型</option>
+            </select>
+          </label>
+
+          <button class="primary-button" id="searchButton" type="button" aria-label="搜索股票">搜索股票</button>
+        </section>
+        <div class="status-message" id="statusMessage" role="status" aria-live="polite"></div>
+        <section class="search-assist" aria-label="搜索建议">
+          <div>
+            <span>常用观察</span>
+            <div class="chip-row" id="suggestionChips"></div>
+          </div>
+          <div id="recentSearchBlock" hidden>
+            <div class="assist-heading">
+              <span>最近搜索</span>
+              <button class="text-button subtle" id="clearRecentSearches" type="button">清空</button>
+            </div>
+            <p class="assist-note" id="recentSearchPrivacyNote">仅保存在本机浏览器，可随时清空。</p>
+            <div class="chip-row" id="recentSearchChips"></div>
+          </div>
+        </section>
+
+        <section class="market-tabs" id="markets" aria-label="市场分类">
+          <button class="tab-button is-active" data-market="a">A 股</button>
+          <button class="tab-button" data-market="hk">港股</button>
+          <button class="tab-button" data-market="us">美股</button>
+        </section>
+
+        <section class="dashboard-grid" id="overview">
+          <article class="panel hero-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">综合模型参考</p>
+                <h2 id="selectedStockName">贵州茅台 · 600519</h2>
+                <p class="stock-coverage-note" id="stockCoverageNote">严格真实数据模式：等待真实行情、新闻、公告、宏观和 AI 分析。</p>
+              </div>
+              <span class="impact-badge neutral" id="impactBadge">等待AI</span>
+            </div>
+
+            <div class="probability-layout">
+              <div class="probability-ring" id="upsideRing" style="--score: 0">
+                <span id="upsideValue" data-metric-state="pending">待AI模型</span>
+                <small>
+                  上涨参考概率
+                  <button class="term-button" data-term="upsideProbability" type="button" aria-label="查看上涨参考概率解释" title="查看上涨参考概率解释">i</button>
+                </small>
+              </div>
+              <div class="metric-list">
+                <div class="metric-row">
+                  <span>
+                    下跌风险概率
+                    <button class="term-button" data-term="downsideProbability" type="button" aria-label="查看下跌风险概率解释" title="查看下跌风险概率解释">i</button>
+                  </span>
+                  <strong id="downsideValue" data-metric-state="pending">待AI模型</strong>
+                </div>
+                <div class="metric-row">
+                  <span>
+                    市场情绪
+                    <button class="term-button" data-term="marketSentiment" type="button" aria-label="查看市场情绪解释" title="查看市场情绪解释">i</button>
+                  </span>
+                  <strong id="sentimentScore" data-metric-state="pending">待AI模型</strong>
+                </div>
+                <div class="metric-row">
+                  <span>
+                    估值吸引力
+                    <button class="term-button" data-term="valuation" type="button" aria-label="查看估值吸引力解释" title="查看估值吸引力解释">i</button>
+                  </span>
+                  <strong id="valuationScore" data-metric-state="pending">待AI模型</strong>
+                </div>
+                <div class="metric-row">
+                  <span>
+                    技术面强弱
+                    <button class="term-button" data-term="technical" type="button" aria-label="查看技术面强弱解释" title="查看技术面强弱解释">i</button>
+                  </span>
+                  <strong id="technicalScore" data-metric-state="pending">待AI模型</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="action-summary">
+              <span>操作参考</span>
+              <strong id="actionText">等待真实 AI 模型生成。</strong>
+            </div>
+            <div class="trade-plan" id="tradePlan"></div>
+
+            <div class="trend-panel" aria-label="历史走势参考">
+              <div class="trend-copy">
+                <span>近 6 期走势参考</span>
+                <strong id="trendSummary">真实走势待获取</strong>
+                <small id="trendSource">严格真实数据模式：没有真实行情时保持空白。</small>
+              </div>
+              <div class="trend-chart" id="trendChart"></div>
+            </div>
+            <div class="scenario-analysis" id="scenarioAnalysis"></div>
+          </article>
+
+          <article class="panel" id="analysis">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">AI 解读</p>
+                <h2>核心原因与风险</h2>
+              </div>
+            </div>
+            <div class="analysis-state" id="analysisState" hidden></div>
+            <ul class="reason-list" id="reasonList"></ul>
+            <div class="factor-breakdown" id="factorBreakdown"></div>
+            <div class="analysis-process" id="analysisProcess"></div>
+            <div class="analysis-basis" id="analysisBasis"></div>
+            <div class="risk-box" id="riskBox">
+              <strong>主要风险</strong>
+              <p id="riskText"></p>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-grid">
+          <article class="panel" id="watchlist">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">我的关注</p>
+                <h2>自选股</h2>
+              </div>
+              <button class="secondary-button" id="addWatchButton" type="button">加入自选</button>
+            </div>
+            <div class="watchlist" id="watchlistItems"></div>
+            <p class="empty-hint" id="watchlistHint">未添加也可以搜索股票查看未来走势参考。</p>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">新闻过滤</p>
+                <h2 id="newsTitle">A 股重点新闻</h2>
+              </div>
+            </div>
+            <p class="data-note">严格真实数据模式：没有真实新闻、公告或公开言论时保持空白。</p>
+            <div class="inline-actions">
+              <button class="secondary-button" id="autoIngestionButton" type="button">自动抓取真实数据</button>
+            </div>
+            <div class="data-source-state compact-state" id="autoIngestionState"></div>
+            <div class="news-list" id="newsList"></div>
+          </article>
+        </section>
+
+        <section class="settings-grid" id="settings">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">项目进度</p>
+                <h2>真实完成度与上线差距</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="projectProgressState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">数据源状态</p>
+                <h2>真实数据源与后端 API</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="dataSourceState"></div>
+          </article>
+
+          <article class="panel" id="ai-model-settings">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">AI 服务状态</p>
+                <h2>分析模型与合规边界</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="aiServiceState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">合规策略状态</p>
+                <h2>免责声明与建议边界</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="complianceServiceState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">数据存储状态</p>
+                <h2>仓储模式与持久化边界</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="repositoryState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">数据库服务状态</p>
+                <h2>生产数据库准备度</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="databaseState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">审计服务状态</p>
+                <h2>日志保留与脱敏边界</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="auditServiceState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">任务运行状态</p>
+                <h2>定时提醒与后台任务</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="jobRunnerState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">调度服务状态</p>
+                <h2>任务计划与队列边界</h2>
+              </div>
+            </div>
+            <div class="data-source-state" id="schedulerState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">账户状态</p>
+                <h2>本机体验与登录同步</h2>
+              </div>
+            </div>
+            <div class="account-state" id="accountState"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">提醒权限</p>
+                <h2>由用户决定推送方式</h2>
+              </div>
+            </div>
+            <div class="permission-list">
+              <label><input type="checkbox" data-notification="inApp" /> 网页内提醒</label>
+              <label><input type="checkbox" data-notification="email" /> 邮件提醒</label>
+              <label><input type="checkbox" data-notification="sms" /> 短信提醒</label>
+              <label><input type="checkbox" data-notification="wechat" /> 微信提醒</label>
+              <label><input type="checkbox" data-notification="telegram" /> Telegram 提醒</label>
+            </div>
+            <div class="channel-state-list" id="notificationChannelState"></div>
+            <p class="helper-text" id="notificationStatus">提醒偏好会先保存在本机，真实推送将在后端阶段接入。</p>
+            <div class="data-source-state compact-service-state" id="notificationServiceState"></div>
+            <form class="reminder-form" id="reminderForm">
+              <label>
+                <span>提醒股票</span>
+                <select id="reminderStock"></select>
+              </label>
+              <label>
+                <span>规则类型</span>
+                <select id="reminderType">
+                  <option value="priceAbove">价格高于</option>
+                  <option value="priceBelow">价格低于</option>
+                  <option value="importantNews">重大新闻</option>
+                </select>
+              </label>
+              <label>
+                <span>触发数值</span>
+                <input id="reminderThreshold" type="number" inputmode="decimal" min="0" step="0.01" placeholder="价格或重要性分数" />
+              </label>
+              <button class="secondary-button" type="submit">添加提醒规则</button>
+            </form>
+            <div class="reminder-rules" id="reminderRules"></div>
+            <div class="notification-center" id="notificationCenter"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">持仓信息</p>
+                <h2>非必填，但越完整越准确</h2>
+              </div>
+            </div>
+            <p class="helper-text">
+              买入价、持仓数量、买入日期、目标收益和最大可接受亏损均为非必填。不填写时，系统仍可展示新闻影响、走势判断、估值、技术面和风险提示。
+            </p>
+            <div class="portfolio-sync-state" id="portfolioSyncState"></div>
+            <form class="portfolio-form" id="portfolioForm">
+              <label>
+                <span>买入价</span>
+                <input id="buyPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="例如 128.50" />
+              </label>
+              <label>
+                <span>持仓数量</span>
+                <input id="holdingQty" type="number" inputmode="decimal" min="0" step="1" placeholder="例如 100" />
+              </label>
+              <label>
+                <span>买入日期</span>
+                <input id="buyDate" type="date" />
+              </label>
+              <label>
+                <span>目标收益率</span>
+                <input id="targetReturn" type="number" inputmode="decimal" step="0.1" placeholder="例如 15%" />
+              </label>
+              <label>
+                <span>最大可接受亏损</span>
+                <input id="maxLoss" type="number" inputmode="decimal" step="0.1" placeholder="例如 8%" />
+              </label>
+              <button class="secondary-button" type="submit">保存持仓信息</button>
+            </form>
+            <div class="portfolio-summary" id="portfolioSummary" hidden></div>
+          </article>
+        </section>
+
+        <footer class="disclaimer">
+          本内容仅在存在真实数据和明确来源时生成；没有真实数据时页面保持空白。所有模型输出仅供学习和研究参考，不构成任何投资建议、买卖推荐或收益承诺。市场有风险，投资需谨慎。
+        </footer>
+      </main>
+    </div>
+
+    <dialog class="term-dialog" id="termDialog">
+      <h3 id="termTitle"></h3>
+      <p id="termBody"></p>
+      <button class="primary-button" id="closeTermDialog" type="button">知道了</button>
+    </dialog>
+
+    <script src="./app.js?v=107"></script>
+  </body>
+</html>

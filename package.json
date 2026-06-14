@@ -1,0 +1,29 @@
+{
+  "name": "finance-ai-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/production-start.mjs",
+    "dev": "node scripts/full-dev-server.mjs",
+    "dev:all": "node scripts/full-dev-server.mjs",
+    "dev:real": "node scripts/real-data-dev-server.mjs",
+    "dev:lan": "node scripts/full-dev-server.mjs --lan",
+    "dev:public-preview": "node scripts/public-preview-server.mjs",
+    "dev:public-preview:supervise": "node scripts/public-preview-supervisor.mjs",
+    "dev:public-preview:watch": "node scripts/public-preview-watchdog.mjs",
+    "check:public-preview": "node scripts/public-preview-health-check.mjs",
+    "check:stable-hosting": "node scripts/stable-hosting-preflight.mjs",
+    "handoff:stable-hosting": "node scripts/stable-hosting-handoff.mjs",
+    "handoff:stable-hosting:html": "node scripts/stable-hosting-handoff.mjs --html",
+    "check:render-readiness": "node scripts/render-deploy-readiness.mjs",
+    "render:env-template": "node scripts/render-dashboard-env-template.mjs",
+    "render:secret-audit": "node scripts/render-deploy-readiness.mjs --include-runtime-files",
+    "gate:stable-access": "node scripts/stable-access-gate.mjs",
+    "status:public-preview": "node scripts/public-preview-status.mjs",
+    "access:public-preview": "node scripts/public-preview-access-report.mjs",
+    "dev:web": "node scripts/web-dev-server.mjs",
+    "dev:backend": "node backend/server.mjs",
+    "test": "node --test tests/*.test.mjs backend/tests/*.test.mjs",
+    "check": "node --check app.js && node --check service-worker.js && node --check scripts/web-dev-server.mjs && node --check scripts/full-dev-server.mjs && node --check scripts/real-data-dev-server.mjs && node --check scripts/public-preview-server.mjs && node --check scripts/public-preview-health-check.mjs && node --check scripts/public-preview-watchdog.mjs && node --check scripts/public-preview-status.mjs && node --check scripts/public-preview-access-report.mjs && node --check scripts/public-preview-supervisor.mjs && node --check scripts/stable-hosting-preflight.mjs && node --check scripts/stable-hosting-handoff.mjs && node --check scripts/stable-access-gate.mjs && node --check scripts/render-deploy-readiness.mjs && node --check scripts/render-dashboard-env-template.mjs && node --check scripts/production-start.mjs && node --check backend/server.mjs && node --test tests/*.test.mjs backend/tests/*.test.mjs"
+  }
+}

@@ -1,0 +1,177 @@
+# Test Report 2026-06-02 / 测试报告 2026-06-02
+
+## Scope / 范围
+- Direction change verification: current delivery target is browser webpage / Web/PWA, not native App/Xcode.
+- Production repository cutover audit trail evidence gate.
+- Settings database panel rendering for audit trail evidence.
+- Existing backend and frontend regression suite after the direction/documentation change.
+- Local webpage startup script and HTTP static-file smoke test.
+- Full local webpage stack startup script that launches the webpage and mock backend together.
+- Local development auto-connect from the webpage to the mock backend.
+- PWA manifest and service worker offline/navigation cache baseline.
+- PWA install prompt and offline-cache registration user feedback.
+- PWA app-shell release update cache strategy.
+- Mobile responsive navigation CSS baseline.
+- Cross-device local/LAN webpage backend auto-connect behavior.
+- Recent search history management usability.
+- Search chip HTML escaping safety.
+- Recent search local-only privacy notice.
+- Empty search clears stale saved keyword behavior.
+- Market tab switch clears stale search keyword behavior.
+- Watchlist selection clears stale search keyword behavior.
+
+## Current Decision / 当前决策
+- The project is now a webpage/PWA product. Xcode/iOS wrapper files remain in the repository as legacy packaging reference only.
+- Current QA acceptance should prioritize browser/web JavaScript syntax checks, backend API tests, frontend regression tests, and future browser visual checks.
+
+## Planned Verification / 计划验证
+- `node --check backend/repositories/production-postgres-repository-adapter.mjs`
+- `node --check backend/services/production-database-adapter.mjs`
+- `node --check backend/services/mock-database-service.mjs`
+- `node --check backend/server.mjs`
+- `node --check app.js`
+- Focused regression for database status, audit trail evidence, production database adapter, and Settings rendering.
+- Full `node --test` regression.
+- `node --check scripts/web-dev-server.mjs`
+- `node --check scripts/full-dev-server.mjs`
+- `node --check tests/frontend-regression.test.mjs`
+- Frontend regression for startup backend auto-connect and explicit local-sample skip.
+- PWA asset regression for manifest installability, service-worker offline fallback, API no-cache, and runtime static-asset caching.
+- PWA asset regression for network-first app-shell assets to avoid stale frontend releases.
+- Frontend regression for install prompt accepted/dismissed states, `appinstalled`, and service-worker registration failure.
+- Responsive CSS regression for small-screen horizontal nav scrolling and compact top spacing.
+- Frontend regression for LAN/private-network API base URL inference.
+- Frontend regression for clearing recent search history and hiding stale search chips.
+- Frontend regression for escaping unsafe recent-search keywords before rendering chips.
+- Frontend regression for showing the local-only recent-search privacy note.
+- Frontend regression for clearing `lastSearch` when the user submits an empty search box.
+- Frontend regression for clearing stale search input and `lastSearch` when users switch market tabs.
+- Frontend regression for clearing stale search input and `lastSearch` when users select a watchlist item.
+- HTTP smoke test against `node scripts/web-dev-server.mjs` on port 4174.
+- HTTP smoke test against `node scripts/full-dev-server.mjs` for the webpage and backend health endpoint.
+
+## Test Cases / 测试用例
+- **TC-312 Direction Change To Webpage / 方向改为网页：** Product, workflow, tech-stack, API, database, and memory docs now identify browser webpage/Web/PWA as the current delivery target. Xcode is legacy reference only.
+- **TC-313 Production Repository Cutover Audit Trail Evidence API / 生产仓储切换审计链证据接口：** `GET /api/database/production-repository-cutover-audit-trail-evidence-plan` returns metadata-only audit objectives, cutover events, allowed/forbidden audit fields, checks, safety flags, rollback triggers, blockers, and disclaimer without writing audit records, reading production audit events, logging raw payloads, or switching storage.
+- **TC-314 Settings Cutover Audit Trail Evidence Display / 设置页切换审计链证据展示：** Settings database panel renders audit status, Hash-chain target, audit event coverage, event list, envelope counts, checks, safety summary, rollback triggers, and blocker warning from database status/cache data.
+- **TC-315 Cutover Gate Depends On Audit Evidence / 切换门禁依赖审计证据：** Production repository cutover readiness keeps `auditTrail` blocked until cutover audit trail evidence is verified.
+- **TC-316 Local Web Server / 本地网页服务器：** `scripts/web-dev-server.mjs` serves the webpage without external dependencies and returns correct content types for `/`, `/app.js`, and `/styles.css`.
+- **TC-317 Full Local Webpage Stack / 本地网页一键启动：** `scripts/full-dev-server.mjs` starts the static webpage server and mock backend together, prefixes service logs, and stops both services on Ctrl+C or child-process failure.
+- **TC-318 Startup Backend Auto-Connect / 启动自动连接后端：** When opened from `127.0.0.1:4173` or `localhost:4173`, the webpage automatically tries `http://localhost:4180` and stores connected backend state when the mock backend responds.
+- **TC-319 Explicit Local Mode Respected / 尊重明确本机样例选择：** If the user has explicitly chosen local sample data, startup auto-connect is skipped and no backend requests are issued.
+- **TC-320 PWA Manifest Baseline / PWA Manifest 基线：** `index.html` declares `manifest.json`, theme color, standalone display mode, start URL, and 192/512 icons.
+- **TC-321 Service Worker Offline Navigation / Service Worker 离线导航：** `service-worker.js` precaches the web shell and falls back to cached `index.html` for navigation when offline.
+- **TC-322 Service Worker Cache Boundaries / Service Worker 缓存边界：** Backend API paths `/api/*` and `/health` are network-only while static assets use runtime caching.
+- **TC-323 Install Prompt Feedback / 安装提示反馈：** The install button shows user feedback for accepted and dismissed browser install prompt choices.
+- **TC-324 Installed Event Feedback / 安装完成反馈：** The `appinstalled` event hides the install button and confirms that the webpage was installed to the device.
+- **TC-325 Service Worker Failure Feedback / 离线缓存失败反馈：** Service-worker registration failure displays a warning without crashing startup.
+- **TC-326 Mobile Navigation Layout / 移动端导航布局：** Below 920px, the top navigation uses horizontal scrolling fixed-width buttons instead of five squeezed equal columns.
+- **TC-327 Mobile Top Spacing / 移动端顶部留白：** Below 920px and 620px, main content top spacing matches the compact fixed navigation height.
+- **TC-328 LAN Backend Auto-Connect / 局域网后端自动连接：** When the webpage opens from a private-network host such as `192.168.1.23:4173`, the frontend infers `http://192.168.1.23:4180` as the mock backend and stores that API base URL.
+- **TC-329 App Shell Network-First Cache / 应用壳网络优先缓存：** `app.js`, `styles.css`, and `manifest.json` use network-first with cache fallback so frontend releases are less likely to stay stale after refresh.
+- **TC-330 Clear Recent Search History / 清空最近搜索：** Users can clear recent search chips; local storage is updated to an empty list, the recent-search block is hidden, and a calm status message confirms the action.
+- **TC-331 Search Chip HTML Escaping / 搜索 Chip HTML 转义：** Recent-search and suggestion chip labels plus `data-search-keyword` values are HTML-escaped so unsafe saved keywords cannot inject raw tags or event attributes into the rendered chip list.
+- **TC-332 Recent Search Local Privacy Notice / 最近搜索本机保存提示：** The recent-search area explains that records are stored only in the local browser and can be cleared anytime, matching the current no-account-sync behavior.
+- **TC-333 Empty Search Clears Saved Keyword / 空搜索清除旧关键词：** When users clear the search box and submit, `lastSearch` is removed, the input stays empty, and the current-market default sample stock is displayed instead of refilling an old keyword after refresh.
+- **TC-334 Market Switch Clears Stale Search / 市场切换清除旧搜索：** When users switch market tabs after a prior search, the search input and `lastSearch` are cleared so the displayed default stock and search field do not contradict each other.
+- **TC-335 Watchlist Switch Clears Stale Search / 自选股切换清除旧搜索：** When users select a stock from the watchlist after a prior search, the search input and `lastSearch` are cleared so the selected watchlist stock is not paired with an unrelated old keyword.
+- **TC-336 Startup Clears Mismatched Last Search / 启动清除错配旧搜索：** When saved `lastSearch` does not match the saved selected stock, startup clears the stale keyword and keeps the selected stock unchanged.
+- **TC-337 Startup Keeps Matched Last Search / 启动保留匹配旧搜索：** When saved `lastSearch` resolves to the same selected stock, startup restores the search input so valid user context survives refresh.
+- **TC-338 News Intelligence Save Stale Response / 新闻情报保存旧响应：** If users switch stocks while a news-intelligence save request is pending, the late old-stock response is ignored, local persisted records are not overwritten, and the panel controls are unlocked.
+- **TC-339 News Intelligence History Stale Response / 新闻情报历史旧响应：** If users switch stocks while a saved-history refresh request is pending, the late old-stock history response is ignored and cannot render stale records into the current stock view.
+- **TC-340 Portfolio Save Stale Response / 持仓保存旧响应：** If users switch stocks while a portfolio save request is pending, the original stock payload remains fixed, the late response is ignored, and the current stock view is not marked as synced.
+- **TC-341 Portfolio Load Stale Response / 持仓读取旧响应：** If users switch stocks while account portfolio loading is pending, the late old-stock position response is ignored and cannot fill the current stock form or sync state.
+- **TC-342 Notification Load Stale Response / 通知读取旧响应：** If users sign out while notification-center loading is pending, the late old-account notification response is ignored and cannot render into the signed-out page.
+- **TC-343 Notification Mark-Read Stale Response / 通知已读旧响应：** If users sign out while a mark-read request is pending, the late old-account response is ignored and cannot render stale success feedback or reload old notifications into the signed-out page.
+- **TC-344 Notification Retry Stale Response / 通知重试旧响应：** If users sign out while a failed-delivery retry request is pending, the late old-account response is ignored and cannot restore old notification rows or show stale retry success feedback.
+
+## Results / 结果
+- Syntax checks passed:
+  - `node --check backend/repositories/production-postgres-repository-adapter.mjs`
+  - `node --check backend/services/production-database-adapter.mjs`
+  - `node --check backend/services/mock-database-service.mjs`
+  - `node --check backend/server.mjs`
+  - `node --check app.js`
+  - `node --check backend/services/mock-notification-service.mjs`
+  - `node --check backend/services/notification-provider-adapter.mjs`
+  - `node --check backend/providers/mock-provider.mjs`
+  - `node --check service-worker.js`
+  - `node --check scripts/web-dev-server.mjs`
+  - `node --check scripts/full-dev-server.mjs`
+  - `node --check tests/frontend-regression.test.mjs`
+- PWA asset regression passed: 4/4 tests.
+- Responsive CSS regression passed: 2/2 tests.
+- Focused regression passed: 7/7 tests.
+- Frontend regression passed: 90/90 tests, including startup backend auto-connect, LAN backend host inference, explicit-local skip, install prompt feedback, installed event feedback, service-worker failure feedback, recent-search clearing, search-chip HTML escaping, the local-only recent-search privacy note, empty-search stale-keyword clearing, market-switch stale-keyword clearing, watchlist-selection stale-keyword clearing, startup saved-search/selected-stock reconciliation, stale-response guards for news-intelligence save/history refresh, stale-response guards for portfolio save/load, and signed-out stale-response guards for notification-center loading/mark-read/retry.
+- Full automated regression passed: 210/210 tests.
+- Latest local webpage stack smoke recheck after notification mark-read/retry stale-response guards also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after notification-center stale-response guard also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after portfolio stale-response guards also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after news-intelligence stale-response guards also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after startup saved-search reconciliation also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after watchlist-selection stale-keyword fix also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after market-switch stale-keyword fix also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after empty-search stale-keyword fix also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after recent-search privacy notice also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Styles `GET /styles.css`: 200, `text/css`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after search-chip HTML escaping also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Styles `GET /styles.css`: 200, `text/css`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Latest local webpage stack smoke recheck after recent-search clearing also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Styles `GET /styles.css`: 200, `text/css`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Local web server smoke passed with approved local HTTP access:
+  - `GET /`: 200, `text/html`
+  - `GET /app.js`: 200, `text/javascript`
+  - `GET /styles.css`: 200, `text/css`
+- Full local webpage stack smoke passed with approved local service access:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+  - Backend `GET /api/data-sources`: returned active mock sample provider details and integration blockers.
+- Full local webpage stack smoke recheck after startup auto-connect change also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Web script `GET /app.js`: 200, `text/javascript`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- Full local webpage stack smoke recheck after PWA service-worker upgrade also passed:
+  - Webpage `GET /`: 200, `text/html`
+  - Service worker `GET /service-worker.js`: 200, `text/javascript`
+  - Manifest `GET /manifest.json`: 200, `application/json`
+  - Backend `GET /health`: `{"status":"ok","service":"finance-ai-assistant-backend","version":"0.1.0"}`
+- `npm run dev` / `npm run dev:web` were not executed because the current environment does not have `npm`; the same scripts were verified directly with `node scripts/full-dev-server.mjs` and `node scripts/web-dev-server.mjs`.
+- Browser automation was not available in this session, so no visual browser screenshot was captured.
+- Xcode/iOS build was intentionally not run because the project direction changed to webpage/PWA and Xcode is now legacy packaging reference only.
+
+## Risks / 风险
+- This round does not validate native Xcode/iOS packaging because the project direction changed to webpage/PWA.
+- Audit trail evidence remains a planning gate only; real production audit persistence still requires staging implementation, durable storage, hash-chain writes, export package persistence, retention automation, and security review.

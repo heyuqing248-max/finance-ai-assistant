@@ -1,0 +1,76 @@
+services:
+  - type: web
+    name: finance-ai-assistant-web
+    runtime: node
+    plan: free
+    buildCommand: node --version
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FINANCE_AI_PUBLIC_HOST
+        value: 0.0.0.0
+      - key: FINANCE_AI_MARKET_DATA_PROVIDER
+        value: multi-free
+      - key: FINANCE_AI_MARKET_DATA_ALLOW_NETWORK
+        value: "true"
+      - key: FINANCE_AI_MARKET_DATA_MODE
+        value: delayed
+      - key: FINANCE_AI_NEWS_PROVIDER
+        value: multi-free-news
+      - key: FINANCE_AI_NEWS_ALLOW_NETWORK
+        value: "true"
+      - key: FINANCE_AI_YAHOO_NEWS_ALLOW_NETWORK
+        value: "true"
+      - key: FINANCE_AI_GOOGLE_NEWS_ALLOW_NETWORK
+        value: "true"
+      - key: FINANCE_AI_GDELT_NEWS_ALLOW_NETWORK
+        value: "true"
+      - key: FINANCE_AI_FILINGS_PROVIDER
+        value: multi-free-filings
+      - key: FINANCE_AI_FILINGS_ALLOW_NETWORK
+        value: "true"
+      - key: FINANCE_AI_MACRO_PROVIDER
+        value: world-bank-open-data
+      - key: FINANCE_AI_MACRO_ALLOW_NETWORK
+        value: "true"
+      - key: FINANCE_AI_TWELVE_DATA_API_KEY
+        sync: false
+      - key: FINANCE_AI_ALPHA_VANTAGE_API_KEY
+        sync: false
+      - key: FINANCE_AI_NEWS_API_KEY
+        sync: false
+      - key: FINANCE_AI_MODEL_API_KEY
+        sync: false
+      - key: FINANCE_AI_MODEL_ID
+        value: gpt-5.5
+      - key: FINANCE_AI_MODEL_BASE_URL
+        value: https://api.openai.com/v1
+      - key: FINANCE_AI_MODEL_API_STYLE
+        value: responses
+      - key: FINANCE_AI_MODEL_FALLBACK_API_KEY
+        sync: false
+      - key: FINANCE_AI_MODEL_FALLBACK_ID
+        value: gemini-2.5-flash
+      - key: FINANCE_AI_MODEL_FALLBACK_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai
+      - key: FINANCE_AI_MODEL_FALLBACK_API_STYLE
+        value: chat-completions
+      - key: FINANCE_AI_MODEL_FALLBACK2_API_KEY
+        sync: false
+      - key: FINANCE_AI_MODEL_FALLBACK2_ID
+        value: qwen/qwen3-next-80b-a3b-instruct:free
+      - key: FINANCE_AI_MODEL_FALLBACK2_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: FINANCE_AI_MODEL_FALLBACK2_API_STYLE
+        value: chat-completions
+      - key: FINANCE_AI_MODEL_FALLBACK3_API_KEY
+        sync: false
+      - key: FINANCE_AI_MODEL_FALLBACK3_ID
+        value: llama-3.1-8b-instant
+      - key: FINANCE_AI_MODEL_FALLBACK3_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: FINANCE_AI_MODEL_FALLBACK3_API_STYLE
+        value: chat-completions
