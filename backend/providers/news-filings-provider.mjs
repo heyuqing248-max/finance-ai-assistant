@@ -70,8 +70,6 @@ const hkexStockIdMap = {
 };
 
 const sourceCredibilityScores = {
-  "SEC EDGAR": 94,
-  "HKEXnews": 92,
   "Yahoo Finance RSS": 82,
   "GDELT Project": 78,
   "公司公告": 90,
@@ -82,6 +80,15 @@ const sourceCredibilityScores = {
   "市场资金": 74,
   "Mock 公开言论样例": 72,
   default: 62,
+};
+
+const officialFilingCredibilityScores = {
+  "SEC EDGAR": 96,
+  "上海证券交易所公告": 95,
+  "HKEXnews": 94,
+  "HKEX 公告": 94,
+  "香港交易所公告": 94,
+  "公司公告": 90,
 };
 
 function hasEnvValue(env = {}, name) {
@@ -1835,7 +1842,30 @@ function sourceLabel(item) {
   return "default";
 }
 
+function officialFilingCredibility(item = {}) {
+  const label = sourceLabel(item);
+  if (officialFilingCredibilityScores[label]) {
+    return officialFilingCredibilityScores[label];
+  }
+
+  const source = item && typeof item.source === "object" && item.source ? item.source : {};
+  const licenseTag = String(source.licenseTag || "").toLowerCase();
+  const hasOfficialLicense =
+    licenseTag.includes("sec-public-disclosure") ||
+    licenseTag.includes("sse-public-company-announcement") ||
+    licenseTag.includes("hkex-public-company-announcement");
+  if (hasOfficialLicense) return 93;
+
+  const hasFilingShape = Boolean(item.filingType || item.accessionNumber || item.reportDate);
+  if (hasFilingShape && item.verified === true) return 90;
+
+  return null;
+}
+
 function sourceCredibility(item) {
+  const officialScore = officialFilingCredibility(item);
+  if (officialScore !== null) return officialScore;
+
   const label = sourceLabel(item);
   return sourceCredibilityScores[label] || sourceCredibilityScores.default;
 }

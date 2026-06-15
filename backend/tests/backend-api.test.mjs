@@ -3389,6 +3389,8 @@ test("news-filings adapter can fetch SEC filings when explicit public-source fla
   assert.equal(result.status, "ok");
   assert.equal(result.mode, "real-provider");
   assert.equal(result.items[0].source.label, "SEC EDGAR");
+  assert.equal(result.items[0].sourceCredibilityScore, 96);
+  assert.equal(result.items[0].importanceBreakdown.sourceCredibility, 96);
   assert.equal(result.items[0].filingType, "10-Q");
   assert.equal(result.sourceStatus, "sec-company-submissions");
   assert.match(requested[0].url, /CIK0000320193\.json/);
@@ -3431,6 +3433,8 @@ test("news-filings adapter can fetch SSE filings for A-shares before SEC fallbac
   assert.equal(result.mode, "real-provider");
   assert.equal(result.provider.id, "sse-company-bulletins");
   assert.equal(result.items[0].source.label, "上海证券交易所公告");
+  assert.equal(result.items[0].sourceCredibilityScore, 95);
+  assert.equal(result.items[0].importanceBreakdown.sourceCredibility, 95);
   assert.equal(result.providerRelay.attemptedProviders[0], "sse-company-bulletins");
   assert.ok(requested[0].url.includes("queryCompanyBulletin.do"));
   assert.equal(requested[0].referer, "https://www.sse.com.cn/");
@@ -3474,6 +3478,8 @@ test("news-filings adapter can fetch HKEX filings for Hong Kong stocks before SE
   assert.equal(result.mode, "real-provider");
   assert.equal(result.provider.id, "hkex-company-announcements");
   assert.equal(result.items[0].source.label, "HKEXnews");
+  assert.equal(result.items[0].sourceCredibilityScore, 94);
+  assert.equal(result.items[0].importanceBreakdown.sourceCredibility, 94);
   assert.equal(result.providerRelay.attemptedProviders[0], "hkex-company-announcements");
   assert.ok(requested[0].url.includes("titleSearchServlet.do"));
   assert.equal(requested[0].referer, "https://www1.hkexnews.hk/search/titlesearch.xhtml?lang=en");
