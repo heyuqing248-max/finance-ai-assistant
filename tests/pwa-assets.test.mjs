@@ -24,6 +24,7 @@ test("initial shell does not hardcode sample analysis metrics", () => {
   assert.match(indexHtml, /id="sentimentScore" data-metric-state="pending">待AI模型/);
   assert.match(indexHtml, /id="valuationScore" data-metric-state="pending">待AI模型/);
   assert.match(indexHtml, /id="technicalScore" data-metric-state="pending">待AI模型/);
+  assert.match(indexHtml, /id="confidenceScore" data-metric-state="pending">待AI模型/);
   assert.match(indexHtml, /id="actionText">等待真实 AI 模型生成。/);
   assert.match(indexHtml, /data-term="upsideProbability"/);
   assert.match(indexHtml, /data-term="downsideProbability"/);
@@ -32,6 +33,7 @@ test("initial shell does not hardcode sample analysis metrics", () => {
   assert.match(indexHtml, /aria-label="查看市场情绪解释"[^>]*>i<\/button>/);
   assert.match(indexHtml, /aria-label="查看估值吸引力解释"[^>]*>i<\/button>/);
   assert.match(indexHtml, /aria-label="查看技术面强弱解释"[^>]*>i<\/button>/);
+  assert.match(indexHtml, /aria-label="查看分析置信度解释"[^>]*>i<\/button>/);
   assert.doesNotMatch(indexHtml, /class="term-button"[^>]*>\?<\/button>/);
   assert.doesNotMatch(indexHtml, /id="upsideRing" style="--score: 64"/);
   assert.doesNotMatch(indexHtml, /id="upsideValue">64%/);
@@ -40,7 +42,7 @@ test("initial shell does not hardcode sample analysis metrics", () => {
 });
 
 test("service worker precaches core shell and supports offline navigation fallback", () => {
-  assert.match(serviceWorker, /finance-ai-assistant-v123/);
+  assert.match(serviceWorker, /finance-ai-assistant-v124/);
   for (const asset of ["./index.html", "./styles.css", "./app.js", "./manifest.json"]) {
     assert.match(serviceWorker, new RegExp(asset.replace(/[./]/g, "\\$&")));
   }

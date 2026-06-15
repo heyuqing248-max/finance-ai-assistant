@@ -129,6 +129,7 @@ function createHarness(storageSeed = {}, options = {}) {
     "sentimentScore",
     "valuationScore",
     "technicalScore",
+    "confidenceScore",
     "actionText",
     "tradePlan",
     "trendSummary",
@@ -197,6 +198,7 @@ function createHarness(storageSeed = {}, options = {}) {
     new FakeElement("termMarketSentiment", { term: "marketSentiment" }),
     new FakeElement("termValuation", { term: "valuation" }),
     new FakeElement("termTechnical", { term: "technical" }),
+    new FakeElement("termConfidenceScore", { term: "confidenceScore" }),
   ];
   const notificationInputs = [
     new FakeElement("notificationInApp", { notification: "inApp" }),
@@ -2890,7 +2892,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /464 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /465 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2906,7 +2908,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /464 条自动化回归/);
+  assert.match(progressHtml, /465 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -2921,7 +2923,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /464 条自动化回归/);
+  assert.match(progressHtml, /465 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -2936,7 +2938,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /464 条自动化回归/);
+  assert.match(progressHtml, /465 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -16012,6 +16014,7 @@ test("connected backend analysis failure keeps strict real-data empty state", as
   assert.equal(app.byId.get("sentimentScore").textContent, "待AI模型");
   assert.equal(app.byId.get("valuationScore").textContent, "待AI模型");
   assert.equal(app.byId.get("technicalScore").textContent, "待AI模型");
+  assert.equal(app.byId.get("confidenceScore").textContent, "待AI模型");
   assert.equal(app.byId.get("actionText").textContent, "暂无真实 AI 分析。");
   assert.doesNotMatch(app.byId.get("actionText").textContent, /谨慎持有|分批观察|加仓|积极模式/);
   assert.ok(requestedUrls.some((url) => url.includes("/api/market-data/quote?market=us&code=AAPL")));
@@ -16063,6 +16066,7 @@ test("connected backend analysis loading hides sample metrics", () => {
   assert.equal(app.byId.get("sentimentScore").textContent, "生成中");
   assert.equal(app.byId.get("valuationScore").textContent, "生成中");
   assert.equal(app.byId.get("technicalScore").textContent, "生成中");
+  assert.equal(app.byId.get("confidenceScore").textContent, "生成中");
   assert.equal(app.byId.get("actionText").textContent, "正在等待真实 AI 模型生成。");
   assert.doesNotMatch(app.byId.get("upsideValue").textContent, /%/);
   assert.doesNotMatch(app.byId.get("actionText").textContent, /谨慎持有|分批观察|加仓|积极模式/);
@@ -16108,6 +16112,7 @@ test("partial backend AI metrics do not fall back to local default scores", asyn
   assert.equal(app.byId.get("sentimentScore").textContent, "待AI模型");
   assert.equal(app.byId.get("valuationScore").textContent, "待AI模型");
   assert.equal(app.byId.get("technicalScore").textContent, "待AI模型");
+  assert.equal(app.byId.get("confidenceScore").textContent, "待AI模型");
   assert.equal(app.byId.get("downsideValue").dataset.metricState, "pending");
   assert.equal(app.byId.get("sentimentScore").dataset.metricState, "pending");
   assert.match(app.byId.get("actionText").textContent, /真实模型只返回了部分指标/);
@@ -16120,6 +16125,59 @@ test("partial backend AI metrics do not fall back to local default scores", asyn
     ].join(" "),
     /36%|72\/100|58\/100|66\/100|--|\?/,
   );
+});
+
+test("backend rule-reference analysis syncs returned metrics into main card", async () => {
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "a",
+      selectedStockCode: "600519",
+    },
+    {
+      fetchImpl: async (url) => {
+        if (url.includes("/api/analysis?")) {
+          return {
+            ok: true,
+            json: async () => ({
+              symbol: "600519",
+              riskProfile: "balanced",
+              analysisMode: "real-data-rule-reference",
+              analysisService: { mode: "real-data-rule-reference", id: "real-data-rule-reference" },
+              upsideProbability: 54,
+              downsideProbability: 46,
+              sentimentScore: 57,
+              valuationScore: 52,
+              technicalScore: 49,
+              confidenceScore: 65,
+              actionReference: "真实数据规则参考：保持观察，等待公告和成交量进一步确认。",
+              reasons: ["后端已返回真实数据规则参考概率。"],
+              risks: ["完整 AI 仍待 provider 可用。"],
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ status: "empty", mode: "empty-no-fixture", items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadAnalysis();
+
+  assert.equal(app.byId.get("selectedStockName").textContent, "贵州茅台 · 600519");
+  assert.equal(app.byId.get("impactBadge").textContent, "规则参考");
+  assert.equal(app.byId.get("upsideValue").textContent, "54%");
+  assert.equal(app.byId.get("downsideValue").textContent, "46%");
+  assert.equal(app.byId.get("sentimentScore").textContent, "57/100");
+  assert.equal(app.byId.get("valuationScore").textContent, "52/100");
+  assert.equal(app.byId.get("technicalScore").textContent, "49/100");
+  assert.equal(app.byId.get("confidenceScore").textContent, "65/100");
+  assert.equal(app.byId.get("upsideValue").dataset.metricState, "value");
+  assert.equal(app.byId.get("confidenceScore").dataset.metricState, "value");
+  assert.match(app.byId.get("actionText").textContent, /真实数据规则参考：保持观察/);
+  assert.doesNotMatch(app.byId.get("actionText").textContent, /暂无真实 AI 分析/);
+  assert.doesNotMatch(app.byId.get("upsideValue").textContent, /待AI模型/);
+  assert.match(app.byId.get("analysisState").innerHTML, /当前仅为规则分析/);
 });
 
 test("connected backend analysis frontend timeout exits loading state without sample advice", async () => {

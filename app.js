@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v123";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v124";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -231,6 +231,10 @@ const terms = {
   technical: {
     title: "技术面强弱",
     body: "技术面强弱主要看价格趋势、成交量、均线和突破情况。它适合辅助判断短期节奏，但不能单独决定买卖。",
+  },
+  confidenceScore: {
+    title: "分析置信度",
+    body: "分析置信度表示本次真实数据和模型输出的完整程度。分数越高，代表可用证据越充分；它不代表收益确定性。",
   },
   macro: {
     title: "宏观经济",
@@ -8555,7 +8559,8 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、464 条自动化回归目标",
+    "后端 API、生产门禁规划、465 条自动化回归目标",
+    "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
     "后台自动连接提示不再覆盖用户刚完成的搜索反馈",
@@ -8807,6 +8812,7 @@ const elements = {
   sentimentScore: document.querySelector("#sentimentScore"),
   valuationScore: document.querySelector("#valuationScore"),
   technicalScore: document.querySelector("#technicalScore"),
+  confidenceScore: document.querySelector("#confidenceScore"),
   actionText: document.querySelector("#actionText"),
   tradePlan: document.querySelector("#tradePlan"),
   trendSummary: document.querySelector("#trendSummary"),
@@ -12225,6 +12231,7 @@ function buildAnalysisMetricCoverage(payload = {}) {
     sentiment: hasFiniteMetric(payload.sentimentScore),
     valuation: hasFiniteMetric(payload.valuationScore),
     technical: hasFiniteMetric(payload.technicalScore),
+    confidence: hasFiniteMetric(payload.confidenceScore),
   };
 }
 
@@ -12236,6 +12243,7 @@ function getAnalysisMetricCoverage(stock = {}) {
     sentiment: coverage.sentiment === true,
     valuation: coverage.valuation === true,
     technical: coverage.technical === true,
+    confidence: coverage.confidence === true,
   };
 }
 
@@ -12252,6 +12260,7 @@ function setAnalysisMetricsPending() {
   setMetricText(elements.sentimentScore, AI_METRIC_PENDING_LABEL, "pending");
   setMetricText(elements.valuationScore, AI_METRIC_PENDING_LABEL, "pending");
   setMetricText(elements.technicalScore, AI_METRIC_PENDING_LABEL, "pending");
+  setMetricText(elements.confidenceScore, AI_METRIC_PENDING_LABEL, "pending");
 }
 
 function setAnalysisMetricsLoading() {
@@ -12261,6 +12270,7 @@ function setAnalysisMetricsLoading() {
   setMetricText(elements.sentimentScore, AI_METRIC_LOADING_LABEL, "loading");
   setMetricText(elements.valuationScore, AI_METRIC_LOADING_LABEL, "loading");
   setMetricText(elements.technicalScore, AI_METRIC_LOADING_LABEL, "loading");
+  setMetricText(elements.confidenceScore, AI_METRIC_LOADING_LABEL, "loading");
 }
 
 function renderReadyAnalysisMetrics(stock) {
@@ -12291,6 +12301,11 @@ function renderReadyAnalysisMetrics(stock) {
     coverage.technical ? `${stock.technical}/100` : AI_METRIC_PENDING_LABEL,
     coverage.technical ? "value" : "pending",
   );
+  setMetricText(
+    elements.confidenceScore,
+    coverage.confidence ? `${stock.confidenceScore}/100` : AI_METRIC_PENDING_LABEL,
+    coverage.confidence ? "value" : "pending",
+  );
 }
 
 function normalizeAnalysisPayload(payload) {
@@ -12310,6 +12325,7 @@ function normalizeAnalysisPayload(payload) {
   const technical = metricCoverage.technical
     ? clamp(Number(payload.technicalScore))
     : fallback.technical;
+  const confidenceScore = metricCoverage.confidence ? clamp(Number(payload.confidenceScore)) : null;
   const reasons = Array.isArray(payload.reasons)
     ? payload.reasons.filter((reason) => typeof reason === "string" && reason.trim())
     : fallback.reasons;
@@ -12327,6 +12343,7 @@ function normalizeAnalysisPayload(payload) {
     sentiment,
     valuation,
     technical,
+    ...(confidenceScore !== null ? { confidenceScore } : {}),
     action:
       typeof payload.actionReference === "string" && payload.actionReference.trim()
         ? payload.actionReference
