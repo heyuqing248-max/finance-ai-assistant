@@ -3063,7 +3063,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /489 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /490 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -3079,7 +3079,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /489 条自动化回归/);
+  assert.match(progressHtml, /490 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3094,7 +3094,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /489 条自动化回归/);
+  assert.match(progressHtml, /490 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3109,7 +3109,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /489 条自动化回归/);
+  assert.match(progressHtml, /490 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4156,10 +4156,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v147",
+    "finance-ai-assistant-v148",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v147/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v148/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4176,7 +4176,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v147",
+    "finance-ai-assistant-v148",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -13839,9 +13839,10 @@ test("connected backend news loads through API on startup", async () => {
   assert.match(app.byId.get("newsList").innerHTML, /公开言论/);
   assert.match(app.byId.get("newsList").innerHTML, /API 启动新闻/);
   assert.match(app.byId.get("newsList").innerHTML, /重要性 91\/100/);
-  assert.match(app.byId.get("stockCoverageNote").textContent, /新闻更新/);
-  assert.match(app.byId.get("stockCoverageNote").textContent, /公告更新/);
-  assert.match(app.byId.get("stockCoverageNote").textContent, /公开言论更新/);
+  assert.match(app.byId.get("stockCoverageNote").textContent, /新闻更新：2026-06-13 \d{2}:\d{2}/);
+  assert.match(app.byId.get("stockCoverageNote").textContent, /公告更新：2026-06-12 \d{2}:\d{2}/);
+  assert.match(app.byId.get("stockCoverageNote").textContent, /公开言论更新：2026-06-13 \d{2}:\d{2}/);
+  assert.doesNotMatch(app.byId.get("stockCoverageNote").textContent, /新闻更新：06\/13|公告更新：06\/12|公开言论更新：06\/13/);
 });
 
 test("connected backend news loading state explains requested sources and filtering progress", async () => {
@@ -15761,7 +15762,8 @@ test("automatic real-data ingestion updates latest quote without sample trend wo
   assert.match(app.byId.get("trendSource").textContent, /真实 provider 数据/);
   assert.doesNotMatch(app.byId.get("trendSource").textContent, /样例数据不代表实时行情/);
   assert.match(app.byId.get("stockCoverageNote").textContent, /行情\s*已连接/);
-  assert.match(app.byId.get("stockCoverageNote").textContent, /行情更新：06\/08/);
+  assert.match(app.byId.get("stockCoverageNote").textContent, /行情更新：2026-06-08 \d{2}:\d{2}/);
+  assert.doesNotMatch(app.byId.get("stockCoverageNote").textContent, /行情更新：06\/08/);
   assert.equal(app.byId.get("tradePlan").hidden, true);
   assert.doesNotMatch(app.byId.get("tradePlan").innerHTML, /操作边界/);
   assert.match(app.byId.get("analysisBasis").innerHTML, /行情：backend-real-provider-quote/);
@@ -15836,7 +15838,8 @@ test("automatic free-api relay quote is rendered as live provider data", async (
   assert.match(app.byId.get("trendSource").textContent, /真实 provider 数据/);
   assert.doesNotMatch(app.byId.get("trendSource").textContent, /后端报价样例|样例数据不代表实时行情/);
   assert.match(app.byId.get("stockCoverageNote").textContent, /行情\s*已连接/);
-  assert.match(app.byId.get("stockCoverageNote").textContent, /行情更新：06\/12/);
+  assert.match(app.byId.get("stockCoverageNote").textContent, /行情更新：2026-06-12 \d{2}:\d{2}/);
+  assert.doesNotMatch(app.byId.get("stockCoverageNote").textContent, /行情更新：06\/12/);
   assert.equal(app.byId.get("tradePlan").hidden, true);
   assert.match(app.byId.get("analysisBasis").innerHTML, /行情：backend-real-provider-quote/);
 });
@@ -16301,7 +16304,8 @@ test("connected backend analysis failure keeps strict real-data empty state", as
   assert.doesNotMatch(app.byId.get("stockCoverageNote").textContent, /股票\s*代码目录识别/);
   assert.match(app.byId.get("stockCoverageNote").textContent, /行情\s*已连接/);
   assert.match(app.byId.get("stockCoverageNote").textContent, /宏观\s*已连接/);
-  assert.match(app.byId.get("stockCoverageNote").textContent, /行情更新：06\/12/);
+  assert.match(app.byId.get("stockCoverageNote").textContent, /行情更新：2026-06-12 \d{2}:\d{2}/);
+  assert.doesNotMatch(app.byId.get("stockCoverageNote").textContent, /行情更新：06\/12/);
   assert.match(app.byId.get("stockCoverageNote").textContent, /宏观更新：2024-12-31 · 年度宏观数据/);
   assert.doesNotMatch(app.byId.get("stockCoverageNote").textContent, /宏观更新：12\/31/);
   assert.equal(app.byId.get("impactBadge").textContent, "已有真实数据");

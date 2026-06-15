@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v147";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v148";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、489 条自动化回归目标",
+    "后端 API、生产门禁规划、490 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -9330,14 +9330,7 @@ function providerIssueToAutoIngestionPayload(stock, issue) {
 
 function formatDataFreshnessTime(value = "") {
   if (!value) return "";
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return String(value).slice(0, 16);
-  return new Date(parsed).toLocaleString("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatFullDateTime(value);
 }
 
 function formatIsoDateOnly(value = "") {
@@ -9354,13 +9347,8 @@ function formatFullDateTime(value = "") {
   const parsed = Date.parse(value);
   if (!Number.isFinite(parsed)) return String(value).slice(0, 16);
   const date = new Date(parsed);
-  const datePart = date.toISOString().slice(0, 10);
-  const timePart = date.toLocaleTimeString("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return `${datePart} ${timePart}`;
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function getMacroFrequencyLabel(macroContext = null) {
@@ -9382,6 +9370,22 @@ function getMacroFrequencyLabel(macroContext = null) {
     .join(" ")
     .toLowerCase();
   if (combinedText.includes("world bank")) return "年度宏观数据";
+  if (
+    context.frequency === "monthly" ||
+    source.frequency === "monthly" ||
+    provider.frequency === "monthly" ||
+    /月度|monthly/.test(combinedText)
+  ) {
+    return "月度";
+  }
+  if (
+    context.frequency === "quarterly" ||
+    source.frequency === "quarterly" ||
+    provider.frequency === "quarterly" ||
+    /季度|quarterly/.test(combinedText)
+  ) {
+    return "季度";
+  }
   if (
     context.frequency === "annual" ||
     source.frequency === "annual" ||
