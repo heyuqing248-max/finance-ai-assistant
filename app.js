@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v135";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v136";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、477 条自动化回归目标",
+    "后端 API、生产门禁规划、478 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -11208,6 +11208,11 @@ function roundTradePrice(value) {
   return number.toFixed(2);
 }
 
+function formatScenarioTargetPrice(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? roundTradePrice(number) : "目标价暂无";
+}
+
 function buildLocalTradePlan(stock) {
   const currentPrice = parsePositiveNumber(stock.samplePrice) || parsePositiveNumber(stock.history?.at(-1)?.price);
   if (!currentPrice) return null;
@@ -11810,7 +11815,7 @@ function normalizeScenarioAnalysis(value = {}, fallbackStock = null) {
         key: typeof item.key === "string" && item.key.trim() ? item.key.trim() : "base",
         label: item.label.trim(),
         probability: Number.isFinite(probability) ? clamp(probability) : 0,
-        targetPrice: Number.isFinite(targetPrice) && targetPrice > 0 ? targetPrice : 0,
+        targetPrice: Number.isFinite(targetPrice) && targetPrice > 0 ? targetPrice : null,
         expectedReturnPct: Number.isFinite(expectedReturnPct) ? expectedReturnPct : 0,
         summary:
           typeof item.summary === "string" && item.summary.trim()
@@ -12012,8 +12017,8 @@ function renderScenarioAnalysis(stock) {
                 <small>${escapeHtml(item.label)}</small>
                 <strong>${escapeHtml(String(item.probability))}%</strong>
               </div>
-              <span>${escapeHtml(roundTradePrice(item.targetPrice))}</span>
-              <em>${item.expectedReturnPct >= 0 ? "+" : ""}${escapeHtml(String(item.expectedReturnPct))}%</em>
+              <span>${escapeHtml(formatScenarioTargetPrice(item.targetPrice))}</span>
+              <em>${item.expectedReturnPct > 0 ? "+" : ""}${escapeHtml(String(item.expectedReturnPct))}%</em>
               <p>${escapeHtml(item.summary)}</p>
             </div>
           `,

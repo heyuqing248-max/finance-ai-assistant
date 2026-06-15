@@ -2977,7 +2977,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /477 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /478 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2993,7 +2993,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /477 条自动化回归/);
+  assert.match(progressHtml, /478 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3008,7 +3008,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /477 条自动化回归/);
+  assert.match(progressHtml, /478 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3023,7 +3023,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /477 条自动化回归/);
+  assert.match(progressHtml, /478 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4059,10 +4059,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v135",
+    "finance-ai-assistant-v136",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v135/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v136/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4079,7 +4079,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v135",
+    "finance-ai-assistant-v136",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -16411,6 +16411,70 @@ test("backend analysis request waits 45 seconds before frontend timeout fallback
   assert.deepEqual([...new Set(timeoutDelays)], [45000]);
   assert.equal(app.byId.get("upsideValue").textContent, "54%");
   assert.equal(app.byId.get("downsideValue").textContent, "46%");
+});
+
+test("scenario analysis does not render zero target prices when current price is unavailable", async () => {
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "a",
+      selectedStockCode: "600519",
+    },
+    {
+      fetchImpl: async (url) => {
+        if (url.includes("/api/analysis?")) {
+          return {
+            ok: true,
+            json: async () => ({
+              symbol: "600519",
+              analysisMode: "real-data-rule-reference",
+              analysisService: { mode: "real-data-rule-reference", id: "real-data-rule-reference" },
+              upsideProbability: 54,
+              downsideProbability: 46,
+              confidenceScore: 65,
+              actionReference: "真实数据规则参考：保持观察。",
+              reasons: ["缺少可用当前价，目标价保持空白。"],
+              risks: ["历史走势不足。"],
+              history: [],
+              historySource: { mode: "missing", label: "真实行情待返回" },
+              scenarioAnalysis: {
+                mode: "real-data-rule-reference",
+                horizon: "2-8 周数据观察",
+                cases: [
+                  { key: "bull", label: "乐观情景", probability: 36, targetPrice: 0, expectedReturnPct: 6, summary: "乐观情景仍只显示收益百分比。" },
+                  { key: "base", label: "基准情景", probability: 41, targetPrice: null, expectedReturnPct: 0, summary: "基准情景暂无目标价。" },
+                  { key: "bear", label: "悲观情景", probability: 23, expectedReturnPct: -6, summary: "悲观情景暂无目标价。" },
+                ],
+                disclaimer: "情景概率为真实数据规则参考，不构成收益预测。",
+              },
+              inputCoverage: {
+                marketData: "missing",
+                history: "missing",
+                news: "backend-real-provider-news",
+                filings: "backend-real-provider-filings",
+                macro: "backend-real-provider-macro",
+                model: "real-data-rule-reference",
+              },
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ status: "empty", mode: "empty-no-fixture", items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadAnalysis();
+
+  assert.equal(app.byId.get("scenarioAnalysis").hidden, false);
+  assert.match(app.byId.get("scenarioAnalysis").innerHTML, /乐观情景/);
+  assert.match(app.byId.get("scenarioAnalysis").innerHTML, /\+6%/);
+  assert.match(app.byId.get("scenarioAnalysis").innerHTML, /基准情景/);
+  assert.match(app.byId.get("scenarioAnalysis").innerHTML, />0%<\/em>/);
+  assert.match(app.byId.get("scenarioAnalysis").innerHTML, /悲观情景/);
+  assert.match(app.byId.get("scenarioAnalysis").innerHTML, /-6%/);
+  assert.equal((app.byId.get("scenarioAnalysis").innerHTML.match(/目标价暂无/g) || []).length, 3);
+  assert.doesNotMatch(app.byId.get("scenarioAnalysis").innerHTML, />0(?:\.0+)?<\/span>|0\.00/);
 });
 
 test("backend analysis ignores sample history and sample scenarios in strict real-data mode", async () => {
