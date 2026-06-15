@@ -2892,7 +2892,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /465 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /467 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2908,7 +2908,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /465 条自动化回归/);
+  assert.match(progressHtml, /467 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -2923,7 +2923,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /465 条自动化回归/);
+  assert.match(progressHtml, /467 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -2938,7 +2938,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /465 条自动化回归/);
+  assert.match(progressHtml, /467 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -3974,10 +3974,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v123",
+    "finance-ai-assistant-v125",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v123/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v125/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -3994,7 +3994,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v123",
+    "finance-ai-assistant-v125",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -14324,9 +14324,10 @@ test("connected backend analysis loads through API", async () => {
                 { label: "周三", price: 200 },
               ],
               historySource: {
-                label: "API 行情样例",
-                frequency: "日度样例",
+                label: "API 真实行情",
+                frequency: "日度真实历史",
                 updatedAt: "2026-06-01",
+                mode: "real-provider",
               },
               tradePlan: {
                 mode: "model-reference",
@@ -14338,13 +14339,13 @@ test("connected backend analysis loads through API", async () => {
                 stopLoss: 180,
                 takeProfit: 236,
                 positionSizing: "API 仓位提示：单次不超过计划仓位 30%。",
-                holdingHorizon: "1-6 周样例观察",
+                holdingHorizon: "1-6 周观察",
                 rationale: "API 操作边界说明。",
                 disclaimer: "仅为模型参考边界，不构成投资建议或收益承诺。",
               },
               scenarioAnalysis: {
                 mode: "model-reference",
-                horizon: "1-6 周样例",
+                horizon: "1-6 周观察",
                 cases: [
                   {
                     key: "bull",
@@ -14371,7 +14372,7 @@ test("connected backend analysis loads through API", async () => {
                     summary: "API 悲观情景说明",
                   },
                 ],
-                disclaimer: "情景概率和目标价为样例模型参考，不构成收益预测。",
+                disclaimer: "情景概率和目标价为真实模型参考，不构成收益预测。",
               },
               factorBreakdown: [
                 {
@@ -14553,7 +14554,7 @@ test("connected backend analysis loads through API", async () => {
   assert.match(app.byId.get("reasonList").innerHTML, /API 原因一/);
   assert.match(app.byId.get("riskText").textContent, /API 风险提示/);
   assert.match(app.byId.get("trendSummary").textContent, /周一 至 周三 上涨 \+5.26%/);
-  assert.match(app.byId.get("trendSource").textContent, /API 行情样例/);
+  assert.match(app.byId.get("trendSource").textContent, /API 真实行情/);
   assert.equal(app.byId.get("scenarioAnalysis").hidden, false);
   assert.match(app.byId.get("scenarioAnalysis").innerHTML, /未来情景/);
   assert.match(app.byId.get("scenarioAnalysis").innerHTML, /乐观情景/);
@@ -16068,8 +16069,23 @@ test("connected backend analysis loading hides sample metrics", () => {
   assert.equal(app.byId.get("technicalScore").textContent, "生成中");
   assert.equal(app.byId.get("confidenceScore").textContent, "生成中");
   assert.equal(app.byId.get("actionText").textContent, "正在等待真实 AI 模型生成。");
+  assert.equal(app.byId.get("trendSummary").textContent, "正在请求真实数据");
+  assert.match(app.byId.get("trendSource").textContent, /真实行情回来前走势图保持空白/);
+  assert.equal(app.byId.get("trendChart").innerHTML, "");
+  assert.equal(app.byId.get("scenarioAnalysis").hidden, true);
+  assert.equal(app.byId.get("scenarioAnalysis").innerHTML, "");
+  assert.equal(app.byId.get("tradePlan").hidden, true);
   assert.doesNotMatch(app.byId.get("upsideValue").textContent, /%/);
-  assert.doesNotMatch(app.byId.get("actionText").textContent, /谨慎持有|分批观察|加仓|积极模式/);
+  assert.doesNotMatch(
+    [
+      app.byId.get("actionText").textContent,
+      app.byId.get("trendSource").textContent,
+      app.byId.get("trendChart").innerHTML,
+      app.byId.get("scenarioAnalysis").innerHTML,
+      app.byId.get("tradePlan").innerHTML,
+    ].join(" "),
+    /本机样例行情|样例走势图|2-8 周样例|1-6 周样例|4-12 周样例|1418|1436|1452|1461|1474|1488|谨慎持有|分批观察|加仓|积极模式/,
+  );
   resolveAnalysis({
     ok: false,
     status: 424,
@@ -16178,6 +16194,85 @@ test("backend rule-reference analysis syncs returned metrics into main card", as
   assert.doesNotMatch(app.byId.get("actionText").textContent, /暂无真实 AI 分析/);
   assert.doesNotMatch(app.byId.get("upsideValue").textContent, /待AI模型/);
   assert.match(app.byId.get("analysisState").innerHTML, /当前仅为规则分析/);
+});
+
+test("backend analysis ignores sample history and sample scenarios in strict real-data mode", async () => {
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "a",
+      selectedStockCode: "600519",
+    },
+    {
+      fetchImpl: async (url) => {
+        if (url.includes("/api/analysis?")) {
+          return {
+            ok: true,
+            json: async () => ({
+              symbol: "600519",
+              analysisMode: "real-provider",
+              analysisService: { mode: "real-provider", id: "real-ai-analysis" },
+              upsideProbability: 55,
+              downsideProbability: 45,
+              sentimentScore: 50,
+              valuationScore: 50,
+              technicalScore: 50,
+              confidenceScore: 40,
+              actionReference: "真实模型参考：保持观察。",
+              reasons: ["真实模型已返回主卡片指标。"],
+              risks: ["样例历史不得用于首屏走势图。"],
+              history: [
+                { label: "1月", price: 1418 },
+                { label: "2月", price: 1436 },
+                { label: "3月", price: 1452 },
+              ],
+              historySource: {
+                label: "Mock 行情样例",
+                frequency: "月度样例",
+                updatedAt: "2026-06-01",
+                mode: "local-sample",
+              },
+              scenarioAnalysis: {
+                mode: "local-sample",
+                horizon: "2-8 周样例",
+                cases: [
+                  {
+                    key: "bull",
+                    label: "乐观情景",
+                    probability: 54,
+                    targetPrice: 1606,
+                    expectedReturnPct: 8,
+                    summary: "样例情景价格不应显示。",
+                  },
+                ],
+                disclaimer: "情景概率和目标价为样例模型参考。",
+              },
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ status: "empty", mode: "empty-no-fixture", items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadAnalysis();
+
+  assert.equal(app.byId.get("upsideValue").textContent, "55%");
+  assert.equal(app.byId.get("confidenceScore").textContent, "40/100");
+  assert.equal(app.byId.get("trendSummary").textContent, "暂无真实走势");
+  assert.match(app.byId.get("trendSource").textContent, /真实行情回来前走势图保持空白/);
+  assert.equal(app.byId.get("trendChart").innerHTML, "");
+  assert.equal(app.byId.get("scenarioAnalysis").hidden, true);
+  assert.equal(app.byId.get("scenarioAnalysis").innerHTML, "");
+  assert.doesNotMatch(
+    [
+      app.byId.get("trendSource").textContent,
+      app.byId.get("trendChart").innerHTML,
+      app.byId.get("scenarioAnalysis").innerHTML,
+    ].join(" "),
+    /Mock 行情样例|月度样例|2-8 周样例|样例情景价格|1606|1418|1436|1452/,
+  );
 });
 
 test("connected backend analysis frontend timeout exits loading state without sample advice", async () => {

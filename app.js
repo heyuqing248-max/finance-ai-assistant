@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v124";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v125";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,8 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、465 条自动化回归目标",
+    "后端 API、生产门禁规划、467 条自动化回归目标",
+    "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
     "严格真实数据模式下股票搜索已恢复 metadata-only 目录，不恢复样例行情、新闻或走势",
@@ -11324,6 +11325,11 @@ function normalizeHistorySource(source, fallbackSource = {}) {
   };
 }
 
+function hasRealHistorySource(source = {}) {
+  const normalized = normalizeHistorySource(source);
+  return isRealMarketDataMode(normalized.mode);
+}
+
 function normalizeInputCoverage(value = {}) {
   if (!isPlainObject(value)) return {};
   return Object.fromEntries(
@@ -11898,6 +11904,18 @@ function normalizeComplianceContext(value = {}) {
 function renderTrend(stock) {
   const history = normalizeHistoryPoints(stock.history);
   const source = normalizeHistorySource(stock.historySource);
+  if (STRICT_REAL_DATA_MODE && !hasRealHistorySource(source)) {
+    const latestPrice = parsePositiveNumber(stock.samplePrice);
+    if (latestPrice && isRealMarketDataMode(source.mode)) {
+      elements.trendSummary.textContent = `最新真实报价 ${roundTradePrice(latestPrice)}`;
+      elements.trendSource.textContent = `${source.label} · ${source.frequency} · 更新 ${source.updatedAt}。${getMarketDataSourceDisclaimer(source)}`;
+    } else {
+      elements.trendSummary.textContent = "暂无真实走势";
+      elements.trendSource.textContent = "严格真实数据模式：真实行情回来前走势图保持空白。";
+    }
+    elements.trendChart.innerHTML = "";
+    return;
+  }
   if (history.length < 2) {
     const latestPrice = parsePositiveNumber(stock.samplePrice);
     if (latestPrice && isRealMarketDataMode(source.mode)) {
@@ -11906,7 +11924,7 @@ function renderTrend(stock) {
     } else {
       elements.trendSummary.textContent = STRICT_REAL_DATA_MODE ? "暂无真实走势" : "走势样例不足";
       elements.trendSource.textContent = STRICT_REAL_DATA_MODE
-        ? "严格真实数据模式：没有真实行情时不显示样例走势图。"
+        ? "严格真实数据模式：真实行情回来前走势图保持空白。"
         : "当前股票缺少足够价格样本，暂不生成走势参考。";
     }
     elements.trendChart.innerHTML = "";
@@ -11952,8 +11970,12 @@ function renderTrend(stock) {
 }
 
 function renderScenarioAnalysis(stock) {
-  const scenario = normalizeScenarioAnalysis(stock.scenarioAnalysis, stock);
-  if (!scenario) {
+  const scenario = normalizeScenarioAnalysis(
+    stock.scenarioAnalysis,
+    STRICT_REAL_DATA_MODE ? null : stock,
+  );
+  const scenarioText = `${scenario?.mode || ""} ${scenario?.horizon || ""} ${scenario?.disclaimer || ""}`;
+  if (!scenario || (STRICT_REAL_DATA_MODE && /local-sample|样例/.test(scenarioText))) {
     elements.scenarioAnalysis.innerHTML = "";
     elements.scenarioAnalysis.hidden = true;
     return;
@@ -11984,6 +12006,33 @@ function renderScenarioAnalysis(stock) {
         .join("")}
     </div>
     <small>${escapeHtml(scenario.disclaimer)}</small>
+  `;
+}
+
+function renderStrictRealDataLoadingShell(analysisState = {}) {
+  elements.tradePlan.innerHTML = "";
+  elements.tradePlan.hidden = true;
+  elements.trendSummary.textContent = "正在请求真实数据";
+  elements.trendSource.textContent = "严格真实数据模式：真实行情回来前走势图保持空白。";
+  elements.trendChart.innerHTML = "";
+  elements.scenarioAnalysis.innerHTML = "";
+  elements.scenarioAnalysis.hidden = true;
+  elements.factorBreakdown.innerHTML = "";
+  elements.factorBreakdown.hidden = true;
+  if (elements.analysisProcess) {
+    elements.analysisProcess.innerHTML = "";
+    elements.analysisProcess.hidden = true;
+  }
+  elements.analysisBasis.innerHTML = "";
+  elements.analysisBasis.hidden = true;
+  elements.reasonList.hidden = true;
+  elements.riskBox.hidden = true;
+  elements.analysisState.hidden = false;
+  elements.analysisState.innerHTML = `
+    <div class="state-panel loading-state" role="status" aria-live="polite">
+      <strong>正在请求真实数据</strong>
+      <p>${escapeHtml(analysisState.message || "正在请求真实行情、新闻、公告、宏观和 AI 分析；返回前走势图和情景价格保持空白。")}</p>
+    </div>
   `;
 }
 
@@ -12349,7 +12398,7 @@ function normalizeAnalysisPayload(payload) {
         ? payload.actionReference
         : fallback.action,
     tradePlan: normalizeTradePlan(payload.tradePlan, null),
-    scenarioAnalysis: normalizeScenarioAnalysis(payload.scenarioAnalysis, fallback),
+    scenarioAnalysis: normalizeScenarioAnalysis(payload.scenarioAnalysis, STRICT_REAL_DATA_MODE ? null : fallback),
     reasons: reasons.length > 0 ? reasons : fallback.reasons,
     risk: risks.length > 0 ? risks.join("；") : fallback.risk,
     history: normalizeHistoryPoints(payload.history, fallback.history),
@@ -13207,7 +13256,7 @@ function renderAnalysis(analysisState = getLocalAnalysisState()) {
       renderTrend(stock);
     } else {
       elements.trendSummary.textContent = "暂无真实走势";
-      elements.trendSource.textContent = "严格真实数据模式：没有真实行情时不显示样例走势图。";
+      elements.trendSource.textContent = "严格真实数据模式：真实行情回来前走势图保持空白。";
       elements.trendChart.innerHTML = "";
     }
     elements.scenarioAnalysis.innerHTML = "";
@@ -13237,6 +13286,8 @@ function renderAnalysis(analysisState = getLocalAnalysisState()) {
   if (analysisState.status === "loading" && analysisState.source === "backend") {
     setAnalysisMetricsLoading();
     elements.actionText.textContent = "正在等待真实 AI 模型生成。";
+    renderStrictRealDataLoadingShell(analysisState);
+    return;
   } else {
     renderReadyAnalysisMetrics(stock);
     elements.actionText.textContent = stock.action;
@@ -13248,20 +13299,7 @@ function renderAnalysis(analysisState = getLocalAnalysisState()) {
   renderAnalysisBasis(stock);
 
   if (analysisState.status === "loading") {
-    elements.analysisState.hidden = false;
-    elements.tradePlan.innerHTML = "";
-    elements.tradePlan.hidden = true;
-    elements.reasonList.hidden = true;
-    elements.factorBreakdown.hidden = true;
-    if (elements.analysisProcess) elements.analysisProcess.hidden = true;
-    elements.analysisBasis.hidden = true;
-    elements.riskBox.hidden = true;
-    elements.analysisState.innerHTML = `
-      <div class="state-panel loading-state" role="status" aria-live="polite">
-        <strong>正在生成 AI 分析</strong>
-        <p>${escapeHtml(analysisState.message || "正在综合新闻、估值、技术面和风险偏好。请稍候。")}</p>
-      </div>
-    `;
+    renderStrictRealDataLoadingShell(analysisState);
     return;
   }
 

@@ -39,10 +39,12 @@ test("initial shell does not hardcode sample analysis metrics", () => {
   assert.doesNotMatch(indexHtml, /id="upsideValue">64%/);
   assert.doesNotMatch(indexHtml, /id="sentimentScore">72\/100/);
   assert.doesNotMatch(indexHtml, /谨慎持有，等待成交量确认后再考虑加仓/);
+  assert.doesNotMatch(indexHtml, /本机样例行情|样例走势图|2-8 周样例|1-6 周样例|4-12 周样例/);
+  assert.doesNotMatch(indexHtml, /1418|1436|1452|1461|1474|1488/);
 });
 
 test("service worker precaches core shell and supports offline navigation fallback", () => {
-  assert.match(serviceWorker, /finance-ai-assistant-v124/);
+  assert.match(serviceWorker, /finance-ai-assistant-v125/);
   for (const asset of ["./index.html", "./styles.css", "./app.js", "./manifest.json"]) {
     assert.match(serviceWorker, new RegExp(asset.replace(/[./]/g, "\\$&")));
   }

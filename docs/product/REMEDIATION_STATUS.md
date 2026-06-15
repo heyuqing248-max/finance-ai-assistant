@@ -44,6 +44,7 @@ Note: real keys must only be stored in Render Dashboard Value fields, not in the
 | P1 | Responses API 非 JSON 修复 | 已增强 / Improved | Responses API 路径现在和 chat 路径一样，遇到不可解析 JSON 会使用 compact、ultra-compact 结构化提示重试。 |
 | P1 | 429/额度不足时自动接力 | 已实现 / Implemented | AI relay 会按主模型、Gemini、OpenRouter、Groq、额外 OpenRouter/Groq 兼容模型尝试，并记录失败类型、冷却和下一步。 |
 | P1 | 首页主卡片同步后端分析结果 | 已修复 / Fixed | v124 前端把后端 `upsideProbability`、`downsideProbability`、`confidenceScore` 和 `actionReference` 写入主卡片；回归覆盖 `600519` 返回 `54%` / `65/100` 后不再显示 `待AI模型`。 |
+| P1 | 首屏加载短暂显示样例行情/样例情景 | 已修复 / Fixed | v125 加载中统一显示 `正在请求真实数据`，清空走势图、交易计划和情景价格；回归覆盖本地目录样例历史和后端误带 `local-sample` 情景时均不渲染。 |
 | P1 | AI 失败信息过技术化 | 已改善 / Improved | 首页显示用户语言；技术码折叠到诊断详情。 |
 | P1 | 新闻相关性和空状态 | 已改善，需继续抽检 / Improved, needs spot checks | 新闻先按直接相关性、重要性排序，再去重折叠；空状态显示来源、返回条数、过滤条数和更新时间。 |
 | P1 | 自选股卡片状态不一致 | 已改善 / Improved | 自选股区分规则参考和完整 AI 状态，避免把规则概率误显示为“无分析”。 |
