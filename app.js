@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v149";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v150";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8646,7 +8646,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、491 条自动化回归目标",
+    "后端 API、生产门禁规划、492 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -8669,6 +8669,7 @@ const projectProgress = {
     "Twelve Data 缺 key 时会明确显示 missing-key，不再误标为 configured",
     "Yahoo Chart fallback 已加入免费行情接力，用于扩展 A 股/港股/美股本地 Demo 报价覆盖",
     "Yahoo Chart history fallback 已接入真实走势图，用于减少只有真实报价没有真实走势的空白",
+    "Stooq CSV 已作为 Yahoo Chart 后的免费美股报价和历史走势兜底，Apple/MSFT 等常见美股不再只依赖单一公开端点",
     "A 股新闻已扩展到 GDELT 公开新闻 fallback，A 股公告已接入上交所公开公告源",
     "个股新闻增加公司别名相关性过滤，避免真实 RSS 混入明显无关标题",
     "新闻接力能识别 Yahoo 临时错误页和 GDELT 限频提示，错误说明更准确",
@@ -8709,6 +8710,9 @@ const projectProgress = {
     "固定 Render 网址新增线上状态检查，可核对版本、接口、AI 接力和完整 AI 输出状态",
     "AI 备用模型诊断会显示每个槽位缺少的 Render Dashboard 变量",
     "新闻第一屏只展示公司直接/公告/公开言论，行业和市场背景默认折叠",
+    "公司直接新闻首屏收紧为最强相关 3 条，其余折叠，避免泛行业新闻冒充个股重点新闻",
+    "自选股卡片新增当前查看、自选列表、对应股票、是否当前页面股票、规则参考更新时间和完整 AI 状态",
+    "缺少真实报价和历史走势时，技术分析显示暂无评分，不再把 50/100 当成真实技术面分数",
     "每日开发日志已延续到 2026-06-14",
   ],
   blockers: [
@@ -11881,12 +11885,18 @@ function normalizeFactorBreakdown(value = [], fallbackStock = null) {
   return source
     .filter((item) => isPlainObject(item) && typeof item.label === "string" && item.label.trim())
     .map((item) => {
-      const score = Number(item.score);
+      const hasRawScore =
+        item.score !== null &&
+        item.score !== undefined &&
+        !(typeof item.score === "string" && item.score.trim() === "");
+      const score = hasRawScore ? Number(item.score) : NaN;
       const weight = Number(item.weight);
+      const scoreAvailable = Number.isFinite(score);
       return {
         key: typeof item.key === "string" && item.key.trim() ? item.key.trim() : "factorBreakdown",
         label: item.label.trim(),
-        score: Number.isFinite(score) ? clamp(score) : 0,
+        score: scoreAvailable ? clamp(score) : null,
+        scoreAvailable,
         weight: Number.isFinite(weight) ? Math.max(0, Math.min(100, Math.round(weight))) : 0,
         summary:
           typeof item.summary === "string" && item.summary.trim()
@@ -12427,22 +12437,27 @@ function renderFactorBreakdown(stock) {
     <div class="factor-grid">
       ${factors
         .map(
-          (factor) => `
+          (factor) => {
+            const scoreLabel = factor.scoreAvailable ? `${factor.score}/100` : "暂无评分";
+            const scoreWidth = factor.scoreAvailable ? factor.score : 0;
+            const scoreAria = factor.scoreAvailable ? `${factor.score} 分` : "暂无评分";
+            return `
             <div class="factor-item">
               <div class="factor-item-head">
                 <span>
                   ${escapeHtml(factor.label)}
                   ${renderTermButton(factor.key)}
                 </span>
-                <strong>${escapeHtml(String(factor.score))}/100</strong>
+                <strong>${escapeHtml(scoreLabel)}</strong>
               </div>
-              <div class="factor-bar" aria-label="${escapeHtml(factor.label)} ${escapeHtml(String(factor.score))} 分">
-                <span style="width: ${escapeHtml(String(factor.score))}%"></span>
+              <div class="factor-bar" aria-label="${escapeHtml(factor.label)} ${escapeHtml(scoreAria)}">
+                <span style="width: ${escapeHtml(String(scoreWidth))}%"></span>
               </div>
               <small>权重 ${escapeHtml(String(factor.weight))}%</small>
               <p>${escapeHtml(factor.summary)}</p>
             </div>
-          `,
+          `;
+          },
         )
         .join("")}
     </div>
@@ -12595,6 +12610,10 @@ function setAnalysisMetricsLoading() {
   setMetricText(elements.confidenceScore, AI_METRIC_LOADING_LABEL, "loading");
 }
 
+function getMissingTechnicalMetricLabel(stock = {}) {
+  return stock.metricUnavailableReasons?.technical ? "暂无评分" : AI_METRIC_PENDING_LABEL;
+}
+
 function renderReadyAnalysisMetrics(stock) {
   const coverage = getAnalysisMetricCoverage(stock);
   elements.upsideRing.style.setProperty("--score", coverage.upside ? stock.upside : 0);
@@ -12620,13 +12639,22 @@ function renderReadyAnalysisMetrics(stock) {
   );
   setMetricText(
     elements.technicalScore,
-    coverage.technical ? `${stock.technical}/100` : AI_METRIC_PENDING_LABEL,
-    coverage.technical ? "value" : "pending",
+    coverage.technical ? `${stock.technical}/100` : getMissingTechnicalMetricLabel(stock),
+    coverage.technical ? "value" : stock.metricUnavailableReasons?.technical ? "unavailable" : "pending",
   );
   setMetricText(
     elements.confidenceScore,
     coverage.confidence ? `${stock.confidenceScore}/100` : AI_METRIC_PENDING_LABEL,
     coverage.confidence ? "value" : "pending",
+  );
+}
+
+function normalizeMetricUnavailableReasons(value = {}) {
+  if (!isPlainObject(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, reason]) => typeof reason === "string" && reason.trim())
+      .map(([key, reason]) => [key, reason.trim()]),
   );
 }
 
@@ -12682,6 +12710,7 @@ function normalizeAnalysisPayload(payload) {
     modelIssue: isPlainObject(payload.modelIssue) ? payload.modelIssue : null,
     providerRelay: isPlainObject(payload.providerRelay) ? payload.providerRelay : null,
     analysisProcess: normalizeAnalysisProcess(payload.analysisProcess),
+    metricUnavailableReasons: normalizeMetricUnavailableReasons(payload.metricUnavailableReasons),
     inputCoverage: {
       ...normalizeInputCoverage(payload.inputCoverage),
       ...(portfolioContext?.inputCoverage ? { portfolio: portfolioContext.inputCoverage } : {}),
@@ -14311,7 +14340,7 @@ function dedupeNewsForDisplay(sortedItems = []) {
 
 function getFirstScreenNewsItems(sortedItems = []) {
   const directItems = sortedItems.filter((item) => item.directStockRelevance || Number(item.relevanceRank) <= 2);
-  if (directItems.length) return directItems.slice(0, 5);
+  if (directItems.length) return directItems.slice(0, 3);
   return sortedItems
     .filter((item) => Number(item.relevanceRank) <= 3 && item.relevanceGroup !== "市场相关")
     .slice(0, 3);
@@ -15225,6 +15254,9 @@ function renderWatchlist(stateOverride = null) {
       const stock = stocks.find((entry) => entry.code === item);
       if (!stock) return "";
       const analysisMeta = getWatchlistAnalysisMeta(stock);
+      const isCurrentStock = state.selectedStock?.code === stock.code;
+      const currentStockLabel = `${state.selectedStock?.name || "当前股票"} · ${state.selectedStock?.code || "--"}`;
+      const watchStockLabel = `${stock.name} · ${stock.code}`;
       return `
         <article class="watch-item">
           <button class="watch-main" data-select-watch="${stock.code}" type="button">
@@ -15233,7 +15265,12 @@ function renderWatchlist(stateOverride = null) {
           </button>
           <div class="watch-meta">
             <span>${getMarketName(stock.market)}</span>
+            <span>当前查看：${escapeHtml(currentStockLabel)}</span>
+            <span>自选列表：${escapeHtml(watchStockLabel)}</span>
+            <span>对应股票：${escapeHtml(watchStockLabel)}</span>
+            <span>是否为当前页面股票：${isCurrentStock ? "是" : "否"}</span>
             <span>${escapeHtml(analysisMeta.probabilityLabel)}</span>
+            <span>规则参考更新时间：${escapeHtml(analysisMeta.ruleUpdatedLabel)}</span>
             <span>${escapeHtml(analysisMeta.aiLabel)}</span>
           </div>
           <button class="text-button" data-remove-watch="${stock.code}" type="button">移除自选</button>
@@ -15252,6 +15289,10 @@ function getWatchlistAnalysisMeta(stock) {
   ) {
     return {
       probabilityLabel: `规则参考 ${Math.round(Number(analysisStock.upside))}%`,
+      ruleUpdatedLabel:
+        formatDataFreshnessTime(analysisStock.historySource?.updatedAt) ||
+        formatDataFreshnessTime(analysisStock.source?.updatedAt) ||
+        "待更新",
       aiLabel: "完整 AI 待模型",
     };
   }
@@ -15263,6 +15304,10 @@ function getWatchlistAnalysisMeta(stock) {
   ) {
     return {
       probabilityLabel: `AI 参考 ${Math.round(Number(analysisStock.upside))}%`,
+      ruleUpdatedLabel:
+        formatDataFreshnessTime(analysisStock.historySource?.updatedAt) ||
+        formatDataFreshnessTime(analysisStock.source?.updatedAt) ||
+        "完整 AI 已生成",
       aiLabel: "AI 已生成",
     };
   }
@@ -15270,6 +15315,7 @@ function getWatchlistAnalysisMeta(stock) {
   if (visibleMeta) return visibleMeta;
   return {
     probabilityLabel: "规则参考 待模型",
+    ruleUpdatedLabel: "待更新",
     aiLabel: "完整 AI 待模型",
   };
 }
@@ -15290,12 +15336,14 @@ function getVisibleCurrentStockAnalysisMeta(stock) {
   if (/完整 AI\s*已生成|完整 AI 分析已生成/.test(analysisText)) {
     return {
       probabilityLabel: `AI 参考 ${match[1]}%`,
+      ruleUpdatedLabel: "见当前主卡片",
       aiLabel: "AI 已生成",
     };
   }
   if (/规则参考\s*已生成|真实数据规则参考|规则参考/.test(analysisText)) {
     return {
       probabilityLabel: `规则参考 ${match[1]}%`,
+      ruleUpdatedLabel: "见当前主卡片",
       aiLabel: "完整 AI 待模型",
     };
   }

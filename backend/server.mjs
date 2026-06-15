@@ -93,7 +93,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、491 条自动化回归目标",
+    "后端 API、生产门禁规划、492 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -117,6 +117,7 @@ const projectProgress = {
     "Twelve Data 缺 key 时会明确显示 missing-key，不再误标为 configured",
     "Yahoo Chart fallback 已加入免费行情接力，用于扩展 A 股/港股/美股本地 Demo 报价覆盖",
     "Yahoo Chart history fallback 已接入真实走势图，用于减少只有真实报价没有真实走势的空白",
+    "Stooq CSV 已作为 Yahoo Chart 后的免费美股报价和历史走势兜底，Apple/MSFT 等常见美股不再只依赖单一公开端点",
     "A 股新闻已扩展到 GDELT 公开新闻 fallback，A 股公告已接入上交所公开公告源",
     "个股新闻增加公司别名相关性过滤，避免真实 RSS 混入明显无关标题",
     "新闻接力能识别 Yahoo 临时错误页和 GDELT 限频提示，错误说明更准确",
@@ -157,6 +158,9 @@ const projectProgress = {
     "固定 Render 网址新增线上状态检查，可核对版本、接口、AI 接力和完整 AI 输出状态",
     "AI 备用模型诊断会显示每个槽位缺少的 Render Dashboard 变量",
     "新闻第一屏只展示公司直接/公告/公开言论，行业和市场背景默认折叠",
+    "公司直接新闻首屏收紧为最强相关 3 条，其余折叠，避免泛行业新闻冒充个股重点新闻",
+    "自选股卡片新增当前查看、自选列表、对应股票、是否当前页面股票、规则参考更新时间和完整 AI 状态",
+    "缺少真实报价和历史走势时，技术分析显示暂无评分，不再把 50/100 当成真实技术面分数",
     "每日开发日志已延续到 2026-06-14",
   ],
   blockers: [
@@ -2841,16 +2845,17 @@ function buildRealDataReferenceAnalysis({
   const firstClose = closes[0]?.price;
   const lastClose = closes.at(-1)?.price || currentPrice || firstClose;
   const trendPct = firstClose && lastClose ? ((lastClose - firstClose) / firstClose) * 100 : 0;
-  const technicalScore = hasRealHistory
+  const technicalScoreForModel = hasRealHistory
     ? clampReferenceScore(50 + trendPct * 2.4, 25, 75)
     : hasRealQuote
       ? 52
       : 50;
+  const technicalScore = hasRealHistory || hasRealQuote ? technicalScoreForModel : null;
   const macroScore = hasRealMacro ? clampReferenceScore(macroContext.factorScore, 20, 80) : 50;
   const informationFlowImpact = buildRealInformationFlowImpact(realSourceRefs);
   const sentimentScore = hasRealSources
     ? clampReferenceScore(informationFlowImpact.score, 20, 80)
-    : clampReferenceScore((macroScore + technicalScore) / 2, 30, 70);
+    : clampReferenceScore((macroScore + technicalScoreForModel) / 2, 30, 70);
   const valuationScore = clampReferenceScore(
     hasRealMacro ? 50 + (macroScore - 50) * 0.35 - Math.max(0, trendPct) * 0.4 : 50,
     30,
@@ -2869,7 +2874,7 @@ function buildRealDataReferenceAnalysis({
   const portfolioAdjustment = portfolioEntry?.maxLoss ? -1 : 0;
   const upsideProbability = clampReferenceScore(
     50 +
-      (technicalScore - 50) * 0.32 +
+      (technicalScoreForModel - 50) * 0.32 +
       (sentimentScore - 50) * 0.24 +
       (macroScore - 50) * 0.22 +
       (valuationScore - 50) * 0.12 +
@@ -2970,6 +2975,12 @@ function buildRealDataReferenceAnalysis({
     sentimentScore,
     valuationScore,
     technicalScore,
+    metricUnavailableReasons:
+      hasRealQuote || hasRealHistory
+        ? {}
+        : {
+            technical: "缺少真实报价和历史走势",
+          },
     confidenceScore,
     actionReference:
       upsideProbability >= 62
@@ -3012,9 +3023,9 @@ function buildRealDataReferenceAnalysis({
       agents: factorBreakdown.map((factor) => ({
         role: factor.key,
         label: `${factor.label}规则检查`,
-        status: factor.score === 50 ? "limited-evidence" : "ready-with-real-data",
+        status: Number.isFinite(factor.score) && factor.score !== 50 ? "ready-with-real-data" : "limited-evidence",
         conclusion: factor.summary,
-        confidence: factor.score,
+        confidence: Number.isFinite(factor.score) ? factor.score : 0,
         evidenceCount: factor.key === "technical" ? closes.length : factor.key === "sentiment" ? realSourceRefs.length : hasRealMacro ? 1 : 0,
       })),
       debate: {

@@ -11,10 +11,13 @@ import { createMacroDataProviderAdapter } from "../providers/macro-data-provider
 import {
   createMarketDataProviderAdapter,
   mapAlphaVantageSymbol,
+  mapStooqSymbol,
   mapTencentQuoteSymbol,
   mapTwelveDataSymbol,
   mapYahooFinanceSymbol,
   parseAlphaVantageGlobalQuote,
+  parseStooqHistoryCsv,
+  parseStooqQuoteCsv,
   parseTencentQuoteText,
   parseYahooFinanceChartHistory,
   parseTwelveDataQuote,
@@ -2068,6 +2071,12 @@ test("market-data adapter relays from Twelve Data to Alpha Vantage when first pr
     fetchImpl: async (url) => {
       const requestedUrl = String(url);
       requestedUrls.push(requestedUrl);
+      if (requestedUrl.includes("query1.finance.yahoo.com")) {
+        return { ok: false, status: 429, json: async () => ({}) };
+      }
+      if (requestedUrl.includes("stooq.com")) {
+        return { ok: true, text: async () => "Symbol,Date,Time,Open,High,Low,Close,Volume\nIBM.US,N/D,N/D,N/D,N/D,N/D,N/D,N/D" };
+      }
       if (requestedUrl.includes("twelvedata.com")) {
         return {
           ok: true,
@@ -2103,11 +2112,13 @@ test("market-data adapter relays from Twelve Data to Alpha Vantage when first pr
   assert.equal(quotePayload.provider.id, "alpha-vantage");
   assert.deepEqual(
     quotePayload.provider.relay.map((attempt) => `${attempt.providerId}:${attempt.status}`),
-    ["twelve-data:unavailable", "alpha-vantage:ok"],
+    ["yahoo-chart:unavailable", "stooq-csv:unavailable", "twelve-data:unavailable", "alpha-vantage:ok"],
   );
-  assert.equal(requestedUrls.length, 2);
-  assert.match(requestedUrls[0], /twelvedata.com/);
-  assert.match(requestedUrls[1], /alphavantage.co/);
+  assert.equal(requestedUrls.length, 4);
+  assert.match(requestedUrls[0], /query1\.finance\.yahoo\.com/);
+  assert.match(requestedUrls[1], /stooq\.com/);
+  assert.match(requestedUrls[2], /twelvedata.com/);
+  assert.match(requestedUrls[3], /alphavantage.co/);
 });
 
 test("market-data adapter maps Yahoo Finance symbols and parses chart quote", () => {
@@ -2143,6 +2154,36 @@ test("market-data adapter maps Yahoo Finance symbols and parses chart quote", ()
   assert.equal(parsed.quote.changePercent, 1.2585);
   assert.equal(parsed.quote.providerSymbol, "600519.SS");
   assert.equal(parsed.quote.source.label, "Yahoo Finance Chart");
+});
+
+test("market-data adapter maps Stooq symbols and parses quote and history CSV", () => {
+  assert.equal(mapStooqSymbol({ market: "us", code: "AAPL" }), "aapl.us");
+  assert.equal(mapStooqSymbol({ market: "hk", code: "700" }), "0700.hk");
+  assert.equal(mapStooqSymbol({ market: "a", code: "600519" }), "");
+
+  const quote = parseStooqQuoteCsv(
+    "Symbol,Date,Time,Open,High,Low,Close,Volume\nAAPL.US,2026-06-12,22:00:07,196.10,198.20,195.80,197.42,123456",
+    { market: "us", code: "AAPL" },
+  );
+  assert.equal(quote.status, "ok");
+  assert.equal(quote.quote.lastPrice, 197.42);
+  assert.equal(quote.quote.providerSymbol, "AAPL.US");
+  assert.equal(quote.quote.source.label, "Stooq CSV");
+  assert.equal(quote.quote.asOf, "2026-06-12T22:00:07.000Z");
+
+  const history = parseStooqHistoryCsv(
+    [
+      "Date,Open,High,Low,Close,Volume",
+      "2026-06-10,193,196,192,195,1000",
+      "2026-06-11,195,198,194,196.4,1001",
+      "2026-06-12,196,199,195,197.42,1002",
+    ].join("\n"),
+    { market: "us", code: "AAPL" },
+  );
+  assert.equal(history.status, "ok");
+  assert.equal(history.points.length, 3);
+  assert.equal(history.points.at(-1).close, 197.42);
+  assert.equal(history.source.label, "Stooq CSV");
 });
 
 test("market-data adapter maps Tencent quote symbols and parses public quote text", () => {
@@ -2242,12 +2283,11 @@ test("market-data multi-free relay falls back to Yahoo Chart for A-share quote",
   assert.equal(quotePayload.quote.source.label, "Yahoo Finance Chart");
   assert.deepEqual(
     quotePayload.provider.relay.map((attempt) => `${attempt.providerId}:${attempt.status}`),
-    ["twelve-data:unavailable", "alpha-vantage:unavailable", "yahoo-chart:ok"],
+    ["yahoo-chart:ok"],
   );
-  assert.equal(requestedUrls.length, 2);
-  assert.match(requestedUrls[0], /alphavantage.co/);
-  assert.match(requestedUrls[1], /query1\.finance\.yahoo\.com/);
-  assert.match(requestedUrls[1], /600519\.SS/);
+  assert.equal(requestedUrls.length, 1);
+  assert.match(requestedUrls[0], /query1\.finance\.yahoo\.com/);
+  assert.match(requestedUrls[0], /600519\.SS/);
 });
 
 test("market-data multi-free relay falls back to Tencent Quote when Yahoo is rate limited", async () => {
@@ -2263,11 +2303,17 @@ test("market-data multi-free relay falls back to Tencent Quote when Yahoo is rat
     fetchImpl: async (url) => {
       const requestedUrl = String(url);
       requestedUrls.push(requestedUrl);
-      if (requestedUrl.includes("alphavantage.co")) {
-        return { ok: true, json: async () => ({ Note: "frequency limit" }) };
-      }
       if (requestedUrl.includes("query1.finance.yahoo.com")) {
         return { ok: false, status: 429, json: async () => ({}) };
+      }
+      if (requestedUrl.includes("stooq.com")) {
+        return { ok: true, text: async () => "Symbol,Date,Time,Open,High,Low,Close,Volume\n600519,N/D,N/D,N/D,N/D,N/D,N/D,N/D" };
+      }
+      if (requestedUrl.includes("twelvedata.com")) {
+        return { ok: true, json: async () => ({ status: "error", message: "unsupported symbol" }) };
+      }
+      if (requestedUrl.includes("alphavantage.co")) {
+        return { ok: true, json: async () => ({ Note: "frequency limit" }) };
       }
       return {
         ok: true,
@@ -2284,11 +2330,17 @@ test("market-data multi-free relay falls back to Tencent Quote when Yahoo is rat
   assert.equal(quotePayload.quote.source.label, "Tencent Quote");
   assert.deepEqual(
     quotePayload.provider.relay.map((attempt) => `${attempt.providerId}:${attempt.status}`),
-    ["twelve-data:unavailable", "alpha-vantage:unavailable", "yahoo-chart:unavailable", "tencent-quote:ok"],
+    [
+      "yahoo-chart:unavailable",
+      "stooq-csv:not-found",
+      "twelve-data:unavailable",
+      "alpha-vantage:unavailable",
+      "tencent-quote:ok",
+    ],
   );
   assert.equal(requestedUrls.length, 3);
-  assert.match(requestedUrls[0], /alphavantage.co/);
-  assert.match(requestedUrls[1], /query1\.finance\.yahoo\.com/);
+  assert.match(requestedUrls[0], /query1\.finance\.yahoo\.com/);
+  assert.match(requestedUrls[1], /alphavantage.co/);
   assert.match(requestedUrls[2], /qt\.gtimg\.cn/);
   assert.match(requestedUrls[2], /sh600519/);
 });
@@ -2335,6 +2387,51 @@ test("market-data adapter can fetch Yahoo Chart history when network flag is ena
   assert.match(requestedUrl, /query1\.finance\.yahoo\.com/);
   assert.match(requestedUrl, /600519\.SS/);
   assert.match(requestedUrl, /interval=1mo/);
+});
+
+test("market-data adapter falls back to Stooq history when Yahoo Chart history fails", async () => {
+  const requestedUrls = [];
+  const adapter = createMarketDataProviderAdapter({
+    env: {
+      FINANCE_AI_MARKET_DATA_PROVIDER: "multi-free",
+      FINANCE_AI_MARKET_DATA_ALLOW_NETWORK: "true",
+      FINANCE_AI_MARKET_DATA_MODE: "delayed",
+    },
+    fetchImpl: async (url) => {
+      const requestedUrl = String(url);
+      requestedUrls.push(requestedUrl);
+      if (requestedUrl.includes("query1.finance.yahoo.com")) {
+        return { ok: false, status: 429, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        text: async () =>
+          [
+            "Date,Open,High,Low,Close,Volume",
+            "2026-06-10,193,196,192,195,1000",
+            "2026-06-11,195,198,194,196.4,1001",
+            "2026-06-12,196,199,195,197.42,1002",
+          ].join("\n"),
+      };
+    },
+  });
+
+  const historyPayload = await adapter.getPriceHistory({
+    market: "us",
+    code: "AAPL",
+    range: "6m",
+    interval: "1mo",
+  });
+
+  assert.equal(historyPayload.status, "ok");
+  assert.equal(historyPayload.mode, "real-provider-relay");
+  assert.equal(historyPayload.provider.id, "stooq-csv");
+  assert.equal(historyPayload.provider.fallbackFrom, "YAHOO_CHART_HISTORY_HTTP_ERROR");
+  assert.equal(historyPayload.points.at(-1).close, 197.42);
+  assert.equal(requestedUrls.length, 2);
+  assert.match(requestedUrls[0], /query1\.finance\.yahoo\.com/);
+  assert.match(requestedUrls[1], /stooq\.com/);
+  assert.match(requestedUrls[1], /aapl\.us/);
 });
 
 test("market-data adapter retries Yahoo Chart history with daily interval when monthly points are insufficient", async () => {

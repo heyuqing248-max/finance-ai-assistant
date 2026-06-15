@@ -523,8 +523,26 @@ test("watchlist card distinguishes rule reference from full AI pending", async (
 
   assert.match(app.byId.get("watchlistItems").innerHTML, /贵州茅台/);
   assert.match(app.byId.get("watchlistItems").innerHTML, /规则参考 54%/);
+  assert.match(app.byId.get("watchlistItems").innerHTML, /规则参考更新时间/);
+  assert.match(app.byId.get("watchlistItems").innerHTML, /是否为当前页面股票：是/);
   assert.match(app.byId.get("watchlistItems").innerHTML, /完整 AI 待模型/);
   assert.doesNotMatch(app.byId.get("watchlistItems").innerHTML, /上涨参考概率 待AI模型|AI 待真实模型/);
+});
+
+test("watchlist card labels current page stock separately from watchlist stock", () => {
+  const app = createHarness({
+    selectedMarket: "us",
+    selectedStockCode: "AAPL",
+    watchlist: JSON.stringify(["600519"]),
+  });
+
+  const html = app.byId.get("watchlistItems").innerHTML;
+  assert.match(html, /当前查看：Apple · AAPL/);
+  assert.match(html, /自选列表：贵州茅台 · 600519/);
+  assert.match(html, /对应股票：贵州茅台 · 600519/);
+  assert.match(html, /是否为当前页面股票：否/);
+  assert.match(html, /规则参考更新时间：待更新/);
+  assert.match(html, /完整 AI 待模型/);
 });
 
 test("watchlist card reuses current analysis by code when market metadata is absent", async () => {
@@ -3063,7 +3081,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /491 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /492 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -3079,7 +3097,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /491 条自动化回归/);
+  assert.match(progressHtml, /492 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3094,7 +3112,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /491 条自动化回归/);
+  assert.match(progressHtml, /492 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3109,7 +3127,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /491 条自动化回归/);
+  assert.match(progressHtml, /492 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4156,10 +4174,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v149",
+    "finance-ai-assistant-v150",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v149/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v150/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4176,7 +4194,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v149",
+    "finance-ai-assistant-v150",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -14011,6 +14029,50 @@ test("connected backend news prioritizes direct stock relevance and labels weak 
   assert.match(html, /展开另外 5 条新闻/);
 });
 
+test("company direct news first screen keeps only the top three strongest items", async () => {
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "us",
+      selectedStockCode: "MSFT",
+    },
+    {
+      fetchImpl: async (url) => {
+        if (url.endsWith("/api/news?market=us&symbol=MSFT")) {
+          return {
+            ok: true,
+            json: async () => ({
+              market: "us",
+              sourceStatus: "real-provider",
+              items: [
+                { title: "Microsoft cloud contract expands", source: "API 源", importance: 95 },
+                { title: "MSFT announces Azure capacity update", source: "API 源", importance: 94 },
+                { title: "Microsoft Copilot enterprise release", source: "API 源", importance: 93 },
+                { title: "Microsoft gaming division update", source: "API 源", importance: 92 },
+                { title: "Microsoft datacenter plan advances", source: "API 源", importance: 91 },
+              ],
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadNews();
+
+  const html = app.byId.get("newsList").innerHTML;
+  const beforeFold = html.slice(0, html.indexOf("<details"));
+  assert.equal((beforeFold.match(/<article class="news-item"/g) || []).length, 3);
+  assert.match(beforeFold, /Microsoft cloud contract expands/);
+  assert.match(beforeFold, /MSFT announces Azure capacity update/);
+  assert.match(beforeFold, /Microsoft Copilot enterprise release/);
+  assert.doesNotMatch(beforeFold, /Microsoft gaming division update|Microsoft datacenter plan advances/);
+  assert.match(html.slice(html.indexOf("<details")), /Microsoft gaming division update/);
+  assert.match(html, /展开另外 2 条新闻/);
+});
+
 test("connected backend news explains exact relevance match type for Moutai items", async () => {
   const app = createHarness(
     {
@@ -16772,6 +16834,68 @@ test("scenario analysis does not render zero target prices when current price is
   assert.match(app.byId.get("scenarioAnalysis").innerHTML, /-6%/);
   assert.equal((app.byId.get("scenarioAnalysis").innerHTML.match(/目标价暂无/g) || []).length, 3);
   assert.doesNotMatch(app.byId.get("scenarioAnalysis").innerHTML, />0(?:\.0+)?<\/span>|0\.00/);
+});
+
+test("rule reference shows no technical score when quote and history are missing", async () => {
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "us",
+      selectedStockCode: "AAPL",
+    },
+    {
+      fetchImpl: async (url) => {
+        if (url.includes("/api/analysis?")) {
+          return {
+            ok: true,
+            json: async () => ({
+              symbol: "AAPL",
+              analysisMode: "real-data-rule-reference",
+              analysisService: { mode: "real-data-rule-reference", id: "real-data-rule-reference" },
+              upsideProbability: 51,
+              downsideProbability: 49,
+              sentimentScore: 55,
+              valuationScore: 50,
+              confidenceScore: 42,
+              actionReference: "真实数据规则参考：保持观察。",
+              reasons: ["新闻和宏观已连接，但行情缺失。"],
+              risks: ["缺少真实报价和历史走势。"],
+              metricUnavailableReasons: {
+                technical: "缺少真实报价和历史走势",
+              },
+              factorBreakdown: [
+                { key: "macro", label: "宏观经济", score: 50, weight: 20, summary: "年度宏观数据可用。" },
+                { key: "industry", label: "行业分析", score: 55, weight: 18, summary: "新闻输入可用。" },
+                { key: "fundamentals", label: "公司基本盘", score: 50, weight: 22, summary: "财报细节暂缺。" },
+                { key: "valuation", label: "估值分析", score: 50, weight: 16, summary: "估值倍数暂缺。" },
+                { key: "technical", label: "技术分析", score: null, weight: 14, summary: "缺少真实报价和历史走势。" },
+                { key: "sentiment", label: "市场情绪", score: 55, weight: 10, summary: "新闻情绪可用。" },
+              ],
+              inputCoverage: {
+                marketData: "missing",
+                history: "missing",
+                news: "backend-real-provider-news",
+                filings: "backend-real-provider-filings",
+                macro: "backend-real-provider-macro",
+                model: "real-data-rule-reference",
+              },
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ status: "empty", mode: "empty-no-fixture", items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadAnalysis();
+
+  assert.equal(app.byId.get("technicalScore").textContent, "暂无评分");
+  assert.equal(app.byId.get("technicalScore").dataset.metricState, "unavailable");
+  assert.match(app.byId.get("factorBreakdown").innerHTML, /技术分析/);
+  assert.match(app.byId.get("factorBreakdown").innerHTML, /暂无评分/);
+  assert.match(app.byId.get("factorBreakdown").innerHTML, /缺少真实报价和历史走势/);
+  assert.doesNotMatch(app.byId.get("technicalScore").textContent, /50\/100/);
 });
 
 test("backend analysis ignores sample history and sample scenarios in strict real-data mode", async () => {

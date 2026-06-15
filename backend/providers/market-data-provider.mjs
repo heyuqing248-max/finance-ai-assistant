@@ -4,12 +4,22 @@ const requiredOperationalEnvVars = [
   "FINANCE_AI_MARKET_DATA_DELAY_LABELS_READY",
   "FINANCE_AI_MARKET_DATA_PRECHECK_READY",
 ];
-const supportedProviderIds = ["licensed-market-data", "alpha-vantage", "twelve-data", "yahoo-chart", "tencent-quote", "multi-free"];
+const supportedProviderIds = [
+  "licensed-market-data",
+  "alpha-vantage",
+  "twelve-data",
+  "yahoo-chart",
+  "stooq-csv",
+  "tencent-quote",
+  "multi-free",
+];
 const marketCurrencies = { a: "CNY", hk: "HKD", us: "USD" };
 const marketTimezones = { a: "Asia/Shanghai", hk: "Asia/Hong_Kong", us: "America/New_York" };
 const alphaVantageBaseUrl = "https://www.alphavantage.co/query";
 const twelveDataBaseUrl = "https://api.twelvedata.com";
 const yahooChartBaseUrl = "https://query1.finance.yahoo.com/v8/finance/chart";
+const stooqQuoteBaseUrl = "https://stooq.com/q/l/";
+const stooqHistoryBaseUrl = "https://stooq.com/q/d/l/";
 const tencentQuoteBaseUrl = "https://qt.gtimg.cn/q=";
 
 function redactAlphaVantageMessage(message, input = {}) {
@@ -67,9 +77,11 @@ function readMarketDataConfig(env = {}) {
         ? Boolean(twelveDataApiKey)
         : selectedProvider === "yahoo-chart"
           ? true
-        : selectedProvider === "multi-free"
-          ? Boolean(alphaVantageApiKey || twelveDataApiKey)
-          : Boolean(genericApiKey);
+          : selectedProvider === "stooq-csv"
+            ? true
+          : selectedProvider === "multi-free"
+            ? true
+            : Boolean(genericApiKey);
   const missingEnvVars = requiredEnvVars.filter((name) => {
     if (name === "FINANCE_AI_MARKET_DATA_API_KEY" && hasSelectedProviderKey) return false;
     return !hasEnvValue(env, name);
@@ -153,6 +165,16 @@ export function mapYahooFinanceSymbol({ market, code, symbol } = {}) {
     return `${raw}.${suffix}`;
   }
   return raw.toUpperCase();
+}
+
+export function mapStooqSymbol({ market, code, symbol } = {}) {
+  const raw = String(symbol || code || "").trim();
+  const normalizedMarket = normalizeMarket(market);
+  if (!raw) return "";
+  if (raw.includes(".")) return raw.toLowerCase();
+  if (normalizedMarket === "us") return `${raw.toLowerCase()}.us`;
+  if (normalizedMarket === "hk") return `${raw.padStart(4, "0").toLowerCase()}.hk`;
+  return "";
 }
 
 export function mapTencentQuoteSymbol({ market, code, symbol } = {}) {
@@ -400,6 +422,39 @@ function createYahooChartConnectorPolicy(config) {
   };
 }
 
+function createStooqConnectorPolicy(config) {
+  const isSelected = config.selectedProvider === "stooq-csv" || config.selectedProvider === "multi-free";
+  const status = !isSelected
+    ? "defined"
+    : !config.networkEnabled
+      ? "network-disabled"
+      : config.supported
+        ? "configured"
+        : "unsupported-provider";
+  return {
+    id: "stooq-csv-quote-connector",
+    status,
+    providerId: "stooq-csv",
+    officialEndpoint: stooqQuoteBaseUrl,
+    functionName: "CSV_QUOTE_AND_DAILY_HISTORY",
+    supportedMarkets: ["us"],
+    plannedMarkets: ["hk", "a"],
+    symbolMapping: {
+      us: "aapl.us",
+      hk: "0700.hk",
+      a: "not-enabled-until-symbol-coverage-verified",
+    },
+    requiresApiKey: false,
+    requiresExplicitNetworkFlag: true,
+    networkEnabled: config.networkEnabled,
+    canRequestProvider: isSelected && config.networkEnabled && config.supported,
+    forbiddenAuditFields: ["rawProviderUrl", "providerResponseRaw"],
+    requiredAttributionFields: ["source.label", "source.licenseTag", "asOf", "dataDelay"],
+    disclaimer:
+      "Stooq CSV fallback 用于 Yahoo Chart 临时失败后的免费美股报价和日线走势兜底；它是公开 CSV 端点，不代表交易所授权实时行情或正式生产许可。",
+  };
+}
+
 function createTencentQuoteConnectorPolicy(config) {
   const isSelected = config.selectedProvider === "tencent-quote" || config.selectedProvider === "multi-free";
   const status = !isSelected
@@ -610,6 +665,123 @@ export function parseYahooFinanceChartHistory(payload, input = {}) {
       attributionRequired: true,
     },
     dataDelay: "provider-reported-or-delayed",
+  };
+}
+
+function parseCsvRows(text) {
+  return String(text || "")
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.split(",").map((cell) => cell.trim()));
+}
+
+function parseStooqDateTime(dateText, timeText = "") {
+  const date = String(dateText || "").trim();
+  const time = String(timeText || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
+  const normalizedTime = /^\d{2}:\d{2}:\d{2}$/.test(time) ? time : "00:00:00";
+  const parsed = new Date(`${date}T${normalizedTime}.000Z`);
+  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
+}
+
+export function parseStooqQuoteCsv(text, input = {}) {
+  const rows = parseCsvRows(text);
+  const header = rows[0] || [];
+  const row = rows[1] || [];
+  const indexOf = (name) => header.findIndex((field) => field.toLowerCase() === name.toLowerCase());
+  const symbol = row[indexOf("Symbol")] || mapStooqSymbol(input);
+  const date = row[indexOf("Date")];
+  const time = row[indexOf("Time")];
+  const close = Number(row[indexOf("Close")]);
+  const open = Number(row[indexOf("Open")]);
+  const volume = Number(row[indexOf("Volume")]);
+  const asOf = parseStooqDateTime(date, time);
+  if (!Number.isFinite(close) || close <= 0 || !asOf || /N\/D/i.test(row.join(","))) {
+    return {
+      status: "unavailable",
+      error: {
+        code: "STOOQ_QUOTE_INVALID",
+        message: "Stooq CSV quote 缺少有效价格或日期字段。",
+      },
+    };
+  }
+  const normalizedMarket = normalizeMarket(input.market) || "us";
+  return {
+    status: "ok",
+    mode: "real-provider",
+    quote: {
+      market: normalizedMarket,
+      code: String(input.code || input.symbol || symbol || "").trim().replace(/\.us$/i, "").toUpperCase(),
+      providerSymbol: symbol || mapStooqSymbol(input),
+      lastPrice: close,
+      previousClose: Number.isFinite(open) ? open : null,
+      change: Number.isFinite(open) ? Number((close - open).toFixed(4)) : null,
+      changePercent: Number.isFinite(open) && open !== 0 ? Number((((close - open) / open) * 100).toFixed(4)) : null,
+      volume: Number.isFinite(volume) ? volume : 0,
+      currency: marketCurrencies[normalizedMarket] || "UNKNOWN",
+      asOf,
+      source: {
+        id: "stooq-csv",
+        label: "Stooq CSV",
+        licenseTag: "public-csv-endpoint-fallback",
+        attributionRequired: true,
+      },
+      dataDelay: "public-endpoint-delayed-or-provider-reported",
+    },
+  };
+}
+
+export function parseStooqHistoryCsv(text, input = {}) {
+  const rows = parseCsvRows(text);
+  const header = rows[0] || [];
+  const indexOf = (name) => header.findIndex((field) => field.toLowerCase() === name.toLowerCase());
+  const points = rows
+    .slice(1)
+    .map((row, index) => {
+      const date = row[indexOf("Date")];
+      const close = Number(row[indexOf("Close")]);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || "")) || !Number.isFinite(close) || close <= 0) {
+        return null;
+      }
+      const parsedDate = new Date(`${date}T00:00:00.000Z`);
+      return {
+        date,
+        label: `${parsedDate.getUTCMonth() + 1}/${parsedDate.getUTCDate()}`,
+        close,
+        sequence: index + 1,
+      };
+    })
+    .filter(Boolean)
+    .slice(-8)
+    .map((point, index) => ({ ...point, sequence: index + 1 }));
+  if (points.length < 2) {
+    return {
+      status: "unavailable",
+      error: {
+        code: "STOOQ_HISTORY_INSUFFICIENT",
+        message: "Stooq CSV history 可用价格点不足。",
+      },
+    };
+  }
+  const normalizedMarket = normalizeMarket(input.market) || "us";
+  return {
+    status: "ok",
+    mode: "real-provider",
+    market: normalizedMarket,
+    code: String(input.code || input.symbol || "").trim(),
+    providerSymbol: mapStooqSymbol(input),
+    range: input.range || "6m",
+    interval: input.interval || "1d",
+    currency: marketCurrencies[normalizedMarket] || "UNKNOWN",
+    asOf: `${points.at(-1).date}T00:00:00.000Z`,
+    points,
+    source: {
+      id: "stooq-csv",
+      label: "Stooq CSV",
+      licenseTag: "public-csv-endpoint-fallback",
+      attributionRequired: true,
+    },
+    dataDelay: "public-endpoint-delayed-or-provider-reported",
   };
 }
 
@@ -907,6 +1079,65 @@ async function fetchYahooChartQuote({ config, input, fetchImpl = globalThis.fetc
   }
 }
 
+async function fetchStooqQuote({ config, input, fetchImpl = globalThis.fetch } = {}) {
+  if (typeof fetchImpl !== "function") {
+    return {
+      status: "unavailable",
+      error: { code: "FETCH_UNAVAILABLE", message: "当前 Node 运行时没有可用 fetch。" },
+    };
+  }
+  const providerSymbol = mapStooqSymbol(input);
+  if (!providerSymbol) return notFoundPayload(input);
+  const url = new URL(stooqQuoteBaseUrl);
+  url.searchParams.set("s", providerSymbol);
+  url.searchParams.set("f", "sd2t2ohlcv");
+  url.searchParams.set("h", "");
+  url.searchParams.set("e", "csv");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.providerTimeoutMs);
+  try {
+    const response = await fetchImpl(url, {
+      method: "GET",
+      headers: { accept: "text/csv,*/*" },
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      return {
+        status: "unavailable",
+        error: {
+          code: "STOOQ_QUOTE_HTTP_ERROR",
+          message: `Stooq CSV quote HTTP ${response.status}`,
+        },
+      };
+    }
+    const parsed = parseStooqQuoteCsv(text, input);
+    if (parsed.status !== "ok") return parsed;
+    return {
+      ...parsed,
+      provider: {
+        id: "stooq-csv",
+        endpoint: "CSV_QUOTE",
+        requestedSymbol: providerSymbol,
+        entitlement: config.requestedMode,
+        requestUrlRedacted: `${stooqQuoteBaseUrl}?s=${encodeURIComponent(providerSymbol)}&f=sd2t2ohlcv&h&e=csv`,
+      },
+      disclaimer:
+        "该报价来自 Stooq CSV 公开端点 fallback，需显示来源和延迟标签；不代表交易所授权实时行情或正式生产许可，不构成投资建议。",
+    };
+  } catch (error) {
+    return {
+      status: "unavailable",
+      error: {
+        code: error?.name === "AbortError" ? "STOOQ_QUOTE_TIMEOUT" : "STOOQ_QUOTE_FETCH_FAILED",
+        message: error?.message || "Stooq CSV quote 请求失败。",
+      },
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function fetchTencentQuote({ config, input, fetchImpl = globalThis.fetch } = {}) {
   if (typeof fetchImpl !== "function") {
     return {
@@ -1045,6 +1276,63 @@ async function fetchYahooChartHistory({ config, input, fetchImpl = globalThis.fe
     fallbackFromInterval: requestedInterval,
     fallbackReason: firstAttempt.error?.code || "",
   };
+}
+
+async function fetchStooqHistory({ config, input, fetchImpl = globalThis.fetch } = {}) {
+  if (typeof fetchImpl !== "function") {
+    return {
+      status: "unavailable",
+      error: { code: "FETCH_UNAVAILABLE", message: "当前 Node 运行时没有可用 fetch。" },
+    };
+  }
+  const providerSymbol = mapStooqSymbol(input);
+  if (!providerSymbol) return notFoundPayload(input);
+  const url = new URL(stooqHistoryBaseUrl);
+  url.searchParams.set("s", providerSymbol);
+  url.searchParams.set("i", "d");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.providerTimeoutMs);
+  try {
+    const response = await fetchImpl(url, {
+      method: "GET",
+      headers: { accept: "text/csv,*/*" },
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      return {
+        status: "unavailable",
+        error: {
+          code: "STOOQ_HISTORY_HTTP_ERROR",
+          message: `Stooq CSV history HTTP ${response.status}`,
+        },
+      };
+    }
+    const parsed = parseStooqHistoryCsv(text, input);
+    if (parsed.status !== "ok") return parsed;
+    return {
+      ...parsed,
+      provider: {
+        id: "stooq-csv",
+        endpoint: "CSV_DAILY_HISTORY",
+        requestedSymbol: providerSymbol,
+        entitlement: config.requestedMode,
+        requestUrlRedacted: `${stooqHistoryBaseUrl}?s=${encodeURIComponent(providerSymbol)}&i=d`,
+      },
+      disclaimer:
+        "该走势来自 Stooq CSV 公开端点 fallback，需显示来源和延迟标签；不代表交易所授权实时行情或正式生产许可，不构成投资建议。",
+    };
+  } catch (error) {
+    return {
+      status: "unavailable",
+      error: {
+        code: error?.name === "AbortError" ? "STOOQ_HISTORY_TIMEOUT" : "STOOQ_HISTORY_FETCH_FAILED",
+        message: error?.message || "Stooq CSV history 请求失败。",
+      },
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function createEndpointContracts() {
@@ -1489,16 +1777,19 @@ function createMarketDataAdapterStatus(config, fixtureStocks = []) {
     twelveDataConnector,
   );
   const yahooChartConnector = createYahooChartConnectorPolicy(config);
+  const stooqConnector = createStooqConnectorPolicy(config);
   const tencentQuoteConnector = createTencentQuoteConnectorPolicy(config);
-  const activeQuoteConnector = twelveDataConnector.canRequestProvider
-    ? twelveDataConnector
-    : alphaVantageConnector.canRequestProvider
-      ? alphaVantageConnector
-      : yahooChartConnector.canRequestProvider
-        ? yahooChartConnector
-        : tencentQuoteConnector.canRequestProvider
-          ? tencentQuoteConnector
-          : null;
+  const activeQuoteConnector = yahooChartConnector.canRequestProvider
+    ? yahooChartConnector
+    : stooqConnector.canRequestProvider
+      ? stooqConnector
+      : twelveDataConnector.canRequestProvider
+        ? twelveDataConnector
+        : alphaVantageConnector.canRequestProvider
+          ? alphaVantageConnector
+          : tencentQuoteConnector.canRequestProvider
+            ? tencentQuoteConnector
+            : null;
   const blockedReasons = [];
   if (!config.configured) {
     blockedReasons.push("行情 provider id 或 API key 尚未配置。");
@@ -1567,6 +1858,7 @@ function createMarketDataAdapterStatus(config, fixtureStocks = []) {
     twelveDataSmokeTestPlan,
     twelveDataCredentialPreflight,
     yahooChartConnector,
+    stooqConnector,
     tencentQuoteConnector,
     safety: {
       noVendorNetworkCalls: !activeQuoteConnector,
@@ -1580,6 +1872,7 @@ function createMarketDataAdapterStatus(config, fixtureStocks = []) {
       alphaVantageNetworkAllowed: alphaVantageConnector.canRequestProvider,
       twelveDataNetworkAllowed: twelveDataConnector.canRequestProvider,
       yahooChartNetworkAllowed: yahooChartConnector.canRequestProvider,
+      stooqNetworkAllowed: stooqConnector.canRequestProvider,
       tencentQuoteNetworkAllowed: tencentQuoteConnector.canRequestProvider,
     },
     blockedReasons,
@@ -1596,7 +1889,9 @@ function createMarketDataAdapterStatus(config, fixtureStocks = []) {
           ? "当前已允许 Twelve Data quote 请求；第一阶段只启用美股 quote，仍必须显示来源、时间戳和延迟/实时标签。"
           : activeQuoteConnector?.providerId === "yahoo-chart"
             ? "当前已允许 Yahoo Finance Chart fallback 请求；它只用于本地 Demo 扩展覆盖，仍必须显示来源、时间戳和延迟/公开端点标签。"
-          : "当前为行情 provider adapter 骨架。真实 provider 不会被请求；本地 fixture 仅用于接口联调，不代表实时或延迟行情已经接入。",
+            : activeQuoteConnector?.providerId === "stooq-csv"
+              ? "当前已允许 Stooq CSV fallback 请求；它只用于免费美股报价和走势兜底，仍必须显示来源、时间戳和延迟/公开端点标签。"
+              : "当前为行情 provider adapter 骨架。真实 provider 不会被请求；本地 fixture 仅用于接口联调，不代表实时或延迟行情已经接入。",
   };
   return {
     ...status,
@@ -1665,6 +1960,76 @@ export function createMarketDataProviderAdapter({ env = process.env, fixtureStoc
     async getQuote(input = {}) {
       if (config.selectedProvider === "multi-free") {
         const relayAttempts = [];
+        if (adapterStatus.yahooChartConnector?.canRequestProvider) {
+          const yahooPayload = await fetchYahooChartQuote({ config, input, fetchImpl });
+          relayAttempts.push({
+            providerId: "yahoo-chart",
+            status: yahooPayload.status,
+            errorCode: yahooPayload.error?.code || "",
+          });
+          if (yahooPayload.status === "ok") {
+            const policyGate = createRequestPolicyGate(adapterStatus, {
+              kind: "quote",
+              market: input.market,
+              code: input.code || input.symbol,
+              payload: {
+                source: yahooPayload.quote.source,
+                asOf: yahooPayload.quote.asOf,
+                dataDelay: yahooPayload.quote.dataDelay,
+              },
+            });
+            return {
+              status: "ok",
+              mode: "real-provider-relay",
+              policyGate,
+              executionPlan: createRequestExecutionPlan(adapterStatus, policyGate, {
+                kind: "quote",
+                mode: "real-provider-relay",
+              }),
+              quote: yahooPayload.quote,
+              provider: {
+                ...yahooPayload.provider,
+                relay: relayAttempts,
+              },
+              disclaimer: yahooPayload.disclaimer,
+            };
+          }
+        }
+        if (adapterStatus.stooqConnector?.canRequestProvider) {
+          const stooqPayload = await fetchStooqQuote({ config, input, fetchImpl });
+          relayAttempts.push({
+            providerId: "stooq-csv",
+            status: stooqPayload.status,
+            errorCode: stooqPayload.error?.code || "",
+          });
+          if (stooqPayload.status === "ok") {
+            const policyGate = createRequestPolicyGate(adapterStatus, {
+              kind: "quote",
+              market: input.market,
+              code: input.code || input.symbol,
+              payload: {
+                source: stooqPayload.quote.source,
+                asOf: stooqPayload.quote.asOf,
+                dataDelay: stooqPayload.quote.dataDelay,
+              },
+            });
+            return {
+              status: "ok",
+              mode: "real-provider-relay",
+              policyGate,
+              executionPlan: createRequestExecutionPlan(adapterStatus, policyGate, {
+                kind: "quote",
+                mode: "real-provider-relay",
+              }),
+              quote: stooqPayload.quote,
+              provider: {
+                ...stooqPayload.provider,
+                relay: relayAttempts,
+              },
+              disclaimer: stooqPayload.disclaimer,
+            };
+          }
+        }
         if (adapterStatus.twelveDataConnector?.canRequestProvider) {
           const twelvePayload = await fetchTwelveDataQuote({ config, input, fetchImpl });
           relayAttempts.push({
@@ -1735,7 +2100,10 @@ export function createMarketDataProviderAdapter({ env = process.env, fixtureStoc
             };
           }
         }
-        if (adapterStatus.yahooChartConnector?.canRequestProvider) {
+        if (
+          adapterStatus.yahooChartConnector?.canRequestProvider &&
+          !relayAttempts.some((attempt) => attempt.providerId === "yahoo-chart")
+        ) {
           const yahooPayload = await fetchYahooChartQuote({ config, input, fetchImpl });
           relayAttempts.push({
             providerId: "yahoo-chart",
@@ -1816,7 +2184,7 @@ export function createMarketDataProviderAdapter({ env = process.env, fixtureStoc
           fallback: "empty",
           fixture: null,
           disclaimer:
-            "Twelve Data / Alpha Vantage / Yahoo Chart / Tencent Quote 接力均失败；样例/fixture 回退已关闭，因此本次不返回行情数据。",
+            "Yahoo Chart / Stooq CSV / Twelve Data / Alpha Vantage / Tencent Quote 接力均失败；样例/fixture 回退已关闭，因此本次不返回行情数据。",
         };
       }
       if (adapterStatus.alphaVantageConnector?.canRequestProvider) {
@@ -1889,6 +2257,40 @@ export function createMarketDataProviderAdapter({ env = process.env, fixtureStoc
       }
       if (adapterStatus.yahooChartConnector?.canRequestProvider) {
         const providerPayload = await fetchYahooChartQuote({ config, input, fetchImpl });
+        if (providerPayload.status === "ok") {
+          const policyGate = createRequestPolicyGate(adapterStatus, {
+            kind: "quote",
+            market: input.market,
+            code: input.code || input.symbol,
+            payload: {
+              source: providerPayload.quote.source,
+              asOf: providerPayload.quote.asOf,
+              dataDelay: providerPayload.quote.dataDelay,
+            },
+          });
+          return {
+            status: "ok",
+            mode: "real-provider",
+            policyGate,
+            executionPlan: createRequestExecutionPlan(adapterStatus, policyGate, {
+              kind: "quote",
+              mode: "real-provider",
+            }),
+            quote: providerPayload.quote,
+            provider: providerPayload.provider,
+            disclaimer: providerPayload.disclaimer,
+          };
+        }
+        return {
+          ...providerPayload,
+          fallback: "empty",
+          fixture: null,
+          disclaimer:
+            "真实行情请求失败；样例/fixture 回退已关闭，因此本次不返回行情数据。",
+        };
+      }
+      if (adapterStatus.stooqConnector?.canRequestProvider) {
+        const providerPayload = await fetchStooqQuote({ config, input, fetchImpl });
         if (providerPayload.status === "ok") {
           const policyGate = createRequestPolicyGate(adapterStatus, {
             kind: "quote",
@@ -2022,6 +2424,93 @@ export function createMarketDataProviderAdapter({ env = process.env, fixtureStoc
             provider: providerPayload.provider,
             fallbackFromInterval: providerPayload.fallbackFromInterval,
             fallbackReason: providerPayload.fallbackReason,
+            disclaimer: providerPayload.disclaimer,
+          };
+        }
+        if (adapterStatus.stooqConnector?.canRequestProvider) {
+          const stooqPayload = await fetchStooqHistory({ config, input, fetchImpl });
+          if (stooqPayload.status === "ok") {
+            const policyGate = createRequestPolicyGate(adapterStatus, {
+              kind: "history",
+              market: input.market,
+              code: input.code || input.symbol,
+              range: input.range || stooqPayload.range,
+              interval: input.interval || stooqPayload.interval,
+              payload: {
+                source: stooqPayload.source,
+                asOf: stooqPayload.asOf,
+                dataDelay: stooqPayload.dataDelay,
+              },
+            });
+            return {
+              status: "ok",
+              mode: "real-provider-relay",
+              policyGate,
+              executionPlan: createRequestExecutionPlan(adapterStatus, policyGate, {
+                kind: "history",
+                mode: "real-provider-relay",
+              }),
+              market: stooqPayload.market,
+              code: stooqPayload.code,
+              providerSymbol: stooqPayload.providerSymbol,
+              range: stooqPayload.range,
+              interval: stooqPayload.interval,
+              currency: stooqPayload.currency,
+              asOf: stooqPayload.asOf,
+              points: stooqPayload.points,
+              source: stooqPayload.source,
+              provider: {
+                ...stooqPayload.provider,
+                fallbackFrom: providerPayload.error?.code || "yahoo-chart",
+              },
+              disclaimer: stooqPayload.disclaimer,
+            };
+          }
+        }
+        if (!fixtureStocks.length) {
+          return {
+            ...providerPayload,
+            fallback: "empty",
+            fixture: null,
+            points: [],
+            disclaimer:
+              "真实历史走势请求失败；样例/fixture 回退已关闭，因此本次不返回走势图数据。",
+          };
+        }
+      }
+      if (adapterStatus.stooqConnector?.canRequestProvider) {
+        const providerPayload = await fetchStooqHistory({ config, input, fetchImpl });
+        if (providerPayload.status === "ok") {
+          const policyGate = createRequestPolicyGate(adapterStatus, {
+            kind: "history",
+            market: input.market,
+            code: input.code || input.symbol,
+            range: input.range || providerPayload.range,
+            interval: input.interval || providerPayload.interval,
+            payload: {
+              source: providerPayload.source,
+              asOf: providerPayload.asOf,
+              dataDelay: providerPayload.dataDelay,
+            },
+          });
+          return {
+            status: "ok",
+            mode: "real-provider",
+            policyGate,
+            executionPlan: createRequestExecutionPlan(adapterStatus, policyGate, {
+              kind: "history",
+              mode: "real-provider",
+            }),
+            market: providerPayload.market,
+            code: providerPayload.code,
+            providerSymbol: providerPayload.providerSymbol,
+            range: providerPayload.range,
+            interval: providerPayload.interval,
+            currency: providerPayload.currency,
+            asOf: providerPayload.asOf,
+            points: providerPayload.points,
+            source: providerPayload.source,
+            provider: providerPayload.provider,
             disclaimer: providerPayload.disclaimer,
           };
         }
