@@ -160,7 +160,7 @@ function readConfig(env = {}) {
     incidentAlertingReady: env.FINANCE_AI_MODEL_INCIDENT_ALERTING_READY === "true",
     userFeedbackMonitorReady: env.FINANCE_AI_MODEL_USER_FEEDBACK_MONITOR_READY === "true",
     maxCallsPerMinute: Number(env.FINANCE_AI_MODEL_MAX_CALLS_PER_MINUTE) || 0,
-    maxTokensPerRequest: Number.isFinite(maxTokens) && maxTokens > 0 ? Math.round(maxTokens) : 1400,
+    maxTokensPerRequest: Number.isFinite(maxTokens) && maxTokens > 0 ? Math.round(maxTokens) : 800,
     requestTimeoutMs:
       Number.isFinite(requestTimeoutMs) && requestTimeoutMs >= 1000
         ? Math.round(requestTimeoutMs)
@@ -860,10 +860,10 @@ function sanitizeText(value = "", maxLength = 320) {
 
 function sanitizeSourceRefs(sourceContext = {}) {
   const sourceRefs = Array.isArray(sourceContext.sourceRefs) ? sourceContext.sourceRefs : [];
-  return sourceRefs.slice(0, 8).map((ref, index) => ({
+  return sourceRefs.slice(0, 5).map((ref, index) => ({
     id: `source-${index + 1}`,
     type: sanitizeText(ref.type || "source", 40),
-    title: sanitizeText(ref.title, 180),
+    title: sanitizeText(ref.title, 120),
     sourceLabel: sanitizeText(ref.sourceLabel, 80),
     sentiment: sanitizeText(ref.sentiment || "neutral", 40),
     importanceScore: clampPercent(ref.importanceScore, 0),
@@ -950,7 +950,7 @@ function buildStructuredAnalysisPrompt(input = {}, config) {
     {
       role: "system",
       content:
-        "你是财经分析辅助模型，只能基于用户提供的行情、新闻、公告和宏观证据做中文结构化分析。禁止承诺收益、禁止写必须买入/必须卖出、禁止编造来源。只输出 JSON 对象。",
+      "只输出 JSON。中文。基于给定字段，不编造来源。禁止收益承诺、必须买入、必须卖出。",
     },
     {
       role: "user",
@@ -996,7 +996,7 @@ function buildCompactStructuredAnalysisPrompt(input = {}, config) {
     {
       role: "system",
       content:
-        "只输出一个 JSON 对象。用中文。不要 Markdown。禁止承诺收益、必须买入、必须卖出。概率必须是 0-100 的整数。",
+        "只输出 JSON。中文。无 Markdown。禁止收益承诺和买卖指令。概率为 0-100 整数。",
     },
     {
       role: "user",
@@ -1756,10 +1756,10 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
                 : buildStructuredAnalysisPrompt(input, config),
         temperature: 0.2,
         max_tokens: ultraCompact
-          ? Math.min(config.maxTokensPerRequest, 512)
+          ? Math.min(config.maxTokensPerRequest, 320)
           : compact
-            ? Math.min(config.maxTokensPerRequest, 900)
-            : config.maxTokensPerRequest,
+            ? Math.min(config.maxTokensPerRequest, 560)
+            : Math.min(config.maxTokensPerRequest, 800),
         ...(isGeminiOpenAiCompatibleConfig(config)
           ? { reasoning_effort: geminiReasoningEffort(config) }
           : {}),
@@ -1954,10 +1954,10 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
           content: message.content,
         })),
         max_output_tokens: ultraCompact
-          ? Math.min(config.maxTokensPerRequest, 512)
+          ? Math.min(config.maxTokensPerRequest, 320)
           : compact
-            ? Math.min(config.maxTokensPerRequest, 900)
-            : config.maxTokensPerRequest,
+            ? Math.min(config.maxTokensPerRequest, 560)
+            : Math.min(config.maxTokensPerRequest, 800),
         text: {
           format: {
             type: "json_schema",

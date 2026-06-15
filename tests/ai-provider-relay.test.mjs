@@ -390,7 +390,7 @@ test("AI provider retries chat-compatible 400 without response_format", async ()
     assert.equal(result.providerRelay.used, "openai/gpt-oss-120b");
     assert.equal(result.provider.responseFormatOmitted, true);
     assert.equal(requests.length, 2);
-    assert.match(requests[1].body.messages[0].content, /只输出一个 JSON 对象|只输出纯 JSON 对象/);
+    assert.match(requests[1].body.messages[0].content, /只输出 JSON|只输出一个 JSON 对象|只输出纯 JSON 对象/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -423,7 +423,7 @@ test("AI provider retries invalid chat JSON with compact prompts", async () => {
     assert.equal(result.provider.compactPrompt, true);
     assert.equal(result.provider.ultraCompactPrompt, true);
     assert.equal(requests.length, 3);
-    assert.match(requests[1].body.messages[0].content, /只输出一个 JSON 对象/);
+    assert.match(requests[1].body.messages[0].content, /只输出 JSON|只输出一个 JSON 对象/);
     assert.match(requests[2].body.messages[0].content, /只输出纯 JSON 对象/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -459,10 +459,10 @@ test("AI provider retries invalid Responses JSON with compact prompts", async ()
     assert.equal(result.provider.compactPrompt, true);
     assert.equal(result.provider.ultraCompactPrompt, true);
     assert.equal(requests.length, 3);
-    assert.equal(requests[0].body.max_output_tokens, 1400);
-    assert.equal(requests[1].body.max_output_tokens, 900);
-    assert.equal(requests[2].body.max_output_tokens, 512);
-    assert.match(requests[1].body.input[0].content, /只输出一个 JSON 对象/);
+    assert.equal(requests[0].body.max_output_tokens, 800);
+    assert.equal(requests[1].body.max_output_tokens, 560);
+    assert.equal(requests[2].body.max_output_tokens, 320);
+    assert.match(requests[1].body.input[0].content, /只输出 JSON|只输出一个 JSON 对象/);
     assert.match(requests[2].body.input[0].content, /只输出纯 JSON 对象/);
   } finally {
     globalThis.fetch = originalFetch;

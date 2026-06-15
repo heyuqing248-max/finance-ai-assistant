@@ -1,7 +1,8 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v151";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v152";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
+const AI_ANALYSIS_RETRY_GUARD_MS = 60 * 1000;
 const AI_ANALYSIS_FRONTEND_TIMEOUT_MS = 45000;
 const BACKEND_STARTUP_STATUS_TIMEOUT_MS = 8000;
 const AI_METRIC_PENDING_LABEL = "待AI模型";
@@ -8178,6 +8179,37 @@ function sanitizeWatchlist(value) {
   return [...new Set(value.filter((code) => validCodes.has(code)))];
 }
 
+function sanitizeWatchlistAnalysisMeta(value) {
+  if (!isPlainObject(value)) return {};
+  const validCodes = new Set(stocks.map((stock) => stock.code));
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([code, meta]) => validCodes.has(code) && isPlainObject(meta))
+      .map(([code, meta]) => {
+        const probability = Number(meta.probability);
+        return [
+          code,
+          {
+            code,
+            analysisKind:
+              typeof meta.analysisKind === "string" && meta.analysisKind.trim()
+                ? meta.analysisKind.trim()
+                : "rule",
+            probability: Number.isFinite(probability) ? clamp(probability) : null,
+            updatedAt:
+              typeof meta.updatedAt === "string" && meta.updatedAt.trim()
+                ? meta.updatedAt.trim()
+                : "",
+            aiStatus:
+              typeof meta.aiStatus === "string" && meta.aiStatus.trim()
+                ? meta.aiStatus.trim()
+                : "完整 AI 待模型",
+          },
+        ];
+      }),
+  );
+}
+
 function normalizeWatchlistItems(items) {
   if (!Array.isArray(items)) return [];
   return sanitizeWatchlist(
@@ -8550,7 +8582,14 @@ function shouldResetLocalStateFromQuery() {
 }
 
 const testLocalStateStorageKeys = [
+  "aiAnalysisRetryLockedUntil",
+  "aiModelCooldownUntil",
+  "lastAiProviderRelay",
   "lastSearch",
+  "lastAnalysisFailureByStock",
+  "watchlistAnalysisMeta",
+  "prototypeWatchlistState",
+  "prototypeAnalysisState",
   "recentSearches",
   "selectedMarket",
   "selectedStockCode",
@@ -8646,7 +8685,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、493 条自动化回归目标",
+    "后端 API、生产门禁规划、494 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -8831,6 +8870,7 @@ const state = {
   auditReplayMessage: "",
   lastAuditExportPackage: null,
   watchlist: readJsonStorage("watchlist", [], sanitizeWatchlist),
+  watchlistAnalysisMeta: readJsonStorage("watchlistAnalysisMeta", {}, sanitizeWatchlistAnalysisMeta),
   notifications: readJsonStorage("notifications", {}, sanitizeNotifications),
   reminderRules: readJsonStorage("reminderRules", [], sanitizeReminderRules),
   notificationItems: [],
@@ -9079,6 +9119,58 @@ function startAiModelCooldown(error = {}) {
 
 function clearAiModelCooldown() {
   localStorage.removeItem("aiModelCooldownUntil");
+}
+
+function readLastAnalysisFailuresByStock() {
+  return readJsonStorage("lastAnalysisFailureByStock", {}, (value) => (isPlainObject(value) ? value : {}));
+}
+
+function writeLastAnalysisFailure(stockCode, failure = {}) {
+  if (!stockCode) return;
+  const failures = readLastAnalysisFailuresByStock();
+  failures[stockCode] = {
+    code: typeof failure.code === "string" ? failure.code : "",
+    message: typeof failure.message === "string" ? failure.message : "",
+    providerRelay: isPlainObject(failure.providerRelay) ? failure.providerRelay : null,
+    recordedAt: new Date().toISOString(),
+    retryLockedUntil: Date.now() + AI_ANALYSIS_RETRY_GUARD_MS,
+  };
+  localStorage.setItem("lastAnalysisFailureByStock", JSON.stringify(failures));
+}
+
+function getAiAnalysisRetryGuard(stockCode = state.selectedStock?.code) {
+  const lock = readJsonStorage("aiAnalysisRetryLockedUntil", null, (value) =>
+    isPlainObject(value) ? value : null,
+  );
+  const remainingMs =
+    lock?.stockCode === stockCode ? Math.max(0, Number(lock.until || 0) - Date.now()) : 0;
+  return {
+    active: remainingMs > 0,
+    remainingSeconds: Math.max(1, Math.ceil(remainingMs / 1000)),
+    lock,
+  };
+}
+
+function startAiAnalysisRetryGuard(stockCode = state.selectedStock?.code) {
+  if (!stockCode) return;
+  localStorage.setItem(
+    "aiAnalysisRetryLockedUntil",
+    JSON.stringify({
+      stockCode,
+      until: Date.now() + AI_ANALYSIS_RETRY_GUARD_MS,
+    }),
+  );
+}
+
+function getCachedAnalysisFailure(stockCode = state.selectedStock?.code) {
+  const failure = readLastAnalysisFailuresByStock()[stockCode];
+  if (!failure || !Number.isFinite(Number(failure.retryLockedUntil))) return null;
+  const remainingMs = Number(failure.retryLockedUntil) - Date.now();
+  if (remainingMs <= 0) return null;
+  return {
+    ...failure,
+    remainingSeconds: Math.max(1, Math.ceil(remainingMs / 1000)),
+  };
 }
 
 function shouldTryBackendStockSearch() {
@@ -13266,7 +13358,9 @@ function renderAiProviderRelayDetails({ providerRelay = null, modelIssue = null,
   const userRecovery = getProviderRelayUserRecovery(providerRelay, cooldown, rateLimited);
   const failureText =
     errorCode || message
-      ? `${friendlyFailure.type}${message ? `：${message}` : ""}`
+      ? compact
+        ? friendlyFailure.type
+        : `${friendlyFailure.type}${message ? `：${message}` : ""}`
       : "失败原因待返回";
   const relayRowsMarkup = relayRows.length
     ? `
@@ -13459,23 +13553,8 @@ function renderStrictRealAnalysisEmptyState(analysisState = {}) {
   const rateLimited = /RATE_LIMIT|QUOTA|429|INSUFFICIENT/i.test(`${errorCode} ${analysisState.message || ""}`);
   const timedOut = /TIMEOUT/i.test(`${errorCode} ${analysisState.message || ""}`);
   const cooldownAdvisory = cooldown.active || rateLimited;
-  const title = rateLimited
-    ? "免费 AI 额度受限"
-    : timedOut
-    ? "真实 AI 请求超时"
-    : hasRelayAttempt
-    ? "真实 AI 接力未完成"
-    : canCallLiveModel
-    ? "真实 AI 等待生成"
-    : configured
-      ? "真实模型待启用"
-      : "真实模型待配置";
-  const reason =
-    typeof analysisState.message === "string" && analysisState.message.trim()
-      ? analysisState.message.trim()
-      : hasRelayAttempt
-        ? "系统已尝试主模型和备用模型，但完整 AI 输出暂未通过；当前不展示样例分析。"
-      : "当前后端已连接真实数据，但真实 AI 模型尚未配置；页面保持空白，不使用样例或规则分析代替。";
+  const title = "完整 AI 暂不可用";
+  const reason = "完整 AI 暂不可用，当前显示规则参考。";
   const missingText = missingEnvVars.length
     ? `缺少：${missingEnvVars.join("、")}`
     : hasRelayAttempt
@@ -13483,15 +13562,7 @@ function renderStrictRealAnalysisEmptyState(analysisState = {}) {
     : configured
       ? "模型配置已存在，但运行时或安全门禁尚未允许调用。"
       : "缺少模型 provider、API key 或 model id。";
-  const nextStep = rateLimited
-    ? "不会全局锁死 AI 重试；可立即重新检测其它已配置免费备用模型，或在设置页切换 Gemini、OpenRouter、Groq 等免费兼容 provider。"
-    : timedOut
-    ? "本次已退出加载状态；可点击重新检测，或在设置页检查 OpenAI/Gemini/OpenRouter/Groq 备用模型配置。"
-    : canCallLiveModel
-    ? "点击重新检测后会再次请求真实模型。"
-    : configured
-      ? "下一步：启用本机真实模型 runtime，并完成结构化输出校验。"
-      : "下一步：在本机临时文件中配置模型 key 和 model id，再重启真实数据服务。";
+  const nextStep = "详细失败原因已放入“展开技术诊断”，普通页面不显示 provider 原始错误。";
   const retryLabel = rateLimited ? "重试/检查备用模型" : cooldownAdvisory ? "重新检测 AI" : "重新检测 AI";
 
   elements.analysisState.hidden = false;
@@ -13533,6 +13604,7 @@ function renderAnalysis(analysisState = getLocalAnalysisState()) {
       source: analysisState.source,
     },
   };
+  updateWatchlistAnalysisMetaFromStock(stock);
   renderWatchlist();
   if (STRICT_REAL_DATA_MODE && analysisState.source !== "backend" && analysisState.status !== "loading") {
     const hasRealMarketData =
@@ -13659,7 +13731,7 @@ function renderAnalysis(analysisState = getLocalAnalysisState()) {
           <span class="analysis-mode-tag is-data-rule">基于真实数据规则计算</span>
         </div>
         <strong>当前仅为规则分析</strong>
-        <p>本次概率来自真实行情、新闻、公告或宏观输入的规则计算，不是完整真实 AI 模型输出。</p>
+        <p>完整 AI 暂不可用，当前显示规则参考。</p>
         ${renderAiProviderRelayDetails({ providerRelay, modelIssue, cooldown: relayCooldown, compact: true })}
       </div>
     `;
@@ -13730,7 +13802,6 @@ async function loadAnalysis() {
     if (payload.providerRelay) {
       localStorage.setItem("lastAiProviderRelay", JSON.stringify(payload.providerRelay));
     }
-    clearAiModelCooldown();
     analysisState.stock = applyMarketDataSnapshot(
       analysisState.stock,
       await loadMarketDataSnapshot(stock),
@@ -13741,6 +13812,16 @@ async function loadAnalysis() {
     );
     if (isAnalysisRequestStale(requestContext)) {
       return null;
+    }
+    if (isFullRealAiAnalysis(analysisState.stock)) {
+      clearAiModelCooldown();
+      localStorage.removeItem("aiAnalysisRetryLockedUntil");
+    } else if (analysisState.stock.modelIssue || analysisState.stock.providerRelay) {
+      writeLastAnalysisFailure(stock.code, {
+        code: analysisState.stock.modelIssue?.code || "",
+        message: "完整 AI 暂不可用，当前显示规则参考。",
+        providerRelay: analysisState.stock.providerRelay || null,
+      });
     }
     renderAnalysis(analysisState);
     renderPortfolioSummary();
@@ -13787,6 +13868,11 @@ async function loadAnalysis() {
             ? "真实 AI 模型触发额度或速率限制；当前保持空白，但不会全局冷却阻断重试，可切换或检查其它免费备用模型。"
           : "暂无真实 AI 分析。",
     };
+    writeLastAnalysisFailure(stock.code, {
+      code: error.code || "",
+      message: fallbackState.message,
+      providerRelay: fallbackState.providerRelay,
+    });
     if (fallbackState.providerRelay) {
       localStorage.setItem("lastAiProviderRelay", JSON.stringify(fallbackState.providerRelay));
     }
@@ -13817,6 +13903,33 @@ async function loadAnalysis() {
 
 async function retryAnalysis() {
   localStorage.removeItem("prototypeAnalysisState");
+  const stockCode = state.selectedStock?.code || "";
+  const cachedFailure = getCachedAnalysisFailure(stockCode);
+  if (cachedFailure) {
+    renderStrictRealAnalysisEmptyState({
+      status: "empty",
+      source: "strict-real-data",
+      stock: state.analysisStock || getAdjustedStock(),
+      errorCode: cachedFailure.code,
+      providerRelay: cachedFailure.providerRelay,
+      message: "完整 AI 暂不可用，当前显示规则参考。",
+      cooldown: getAiModelCooldown(),
+    });
+    showStatus(
+      `同一股票已有最近失败记录，${cachedFailure.remainingSeconds} 秒内不重复请求免费 AI；当前显示缓存失败原因。`,
+      "info",
+    );
+    return null;
+  }
+  const guard = getAiAnalysisRetryGuard(stockCode);
+  if (guard.active) {
+    showStatus(
+      `同一股票 60 秒内不重复请求免费 AI；请等待 ${guard.remainingSeconds} 秒，或切换股票后再检测。`,
+      "info",
+    );
+    return null;
+  }
+  startAiAnalysisRetryGuard(stockCode);
   const analysisState = await loadAnalysis();
   if (!analysisState || analysisState.status !== "ready") return;
   showStatus(
@@ -14353,6 +14466,19 @@ function isLowCredibilityOrdinaryNews(news) {
   return Number.isFinite(score) && score > 0 && score < 70;
 }
 
+function getPredictiveNewsTags(news) {
+  if (news?.kind === "filing") return [];
+  const title = String(news?.title || "");
+  const source = String(news?.source || "");
+  const text = `${title} ${source}`;
+  const hasPredictionShape =
+    /\b(can|could|will|would|may|might|forecast|predict|prediction|target|reach|hit|by\s+20\d{2})\b/i.test(text) ||
+    /(目标价|预测|预期|能否|会不会|有望|涨到|达到|看涨|看跌)/i.test(text);
+  const hasPriceTarget = /[$￥€£]\s?\d+|\b\d+(?:\.\d+)?\s?(?:usd|hkd|rmb|dollars?)\b/i.test(text);
+  if (!hasPredictionShape && !hasPriceTarget) return [];
+  return ["媒体观点", "非公司公告", "不代表模型预测", "仅作新闻参考"];
+}
+
 function getLowCredibilityHint(news) {
   const score = Number(news?.sourceCredibilityScore);
   if (!Number.isFinite(score) || score <= 0 || score >= 70) return "";
@@ -14362,6 +14488,7 @@ function getLowCredibilityHint(news) {
 function renderNewsItem(news) {
   const authorizationLabel = getNewsAuthorizationLabel(news);
   const lowCredibilityHint = getLowCredibilityHint(news);
+  const predictiveTags = getPredictiveNewsTags(news);
   return `
     <article class="news-item${news.kind === "intelligence" || news.kind === "filing" || news.kind === "statement" ? " is-intelligence" : ""}">
       <strong>${escapeHtml(news.title)}</strong>
@@ -14373,9 +14500,15 @@ function renderNewsItem(news) {
         ${news.label ? `<span>${escapeHtml(news.label)}</span>` : ""}
         ${authorizationLabel ? `<span>${escapeHtml(authorizationLabel)}</span>` : ""}
         ${news.relevanceGroup ? `<span>${escapeHtml(news.relevanceGroup)}</span>` : ""}
+        ${predictiveTags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
       </div>
       ${news.relevanceReason ? `<p class="news-relevance">相关性：${escapeHtml(news.relevanceReason)}</p>` : ""}
       ${lowCredibilityHint ? `<p class="news-source-warning">${escapeHtml(lowCredibilityHint)}</p>` : ""}
+      ${
+        predictiveTags.length
+          ? `<p class="news-source-warning">这类标题属于媒体观点或市场讨论，不代表公司公告，也不代表本产品模型预测。</p>`
+          : ""
+      }
     </article>
   `;
 }
@@ -15282,6 +15415,17 @@ function renderWatchlist(stateOverride = null) {
 }
 
 function getWatchlistAnalysisMeta(stock) {
+  const storedMeta = state.watchlistAnalysisMeta?.[stock.code];
+  if (storedMeta && Number.isFinite(Number(storedMeta.probability))) {
+    return {
+      probabilityLabel:
+        storedMeta.analysisKind === "ai"
+          ? `AI 参考 ${Math.round(Number(storedMeta.probability))}%`
+          : `规则参考 ${Math.round(Number(storedMeta.probability))}%`,
+      ruleUpdatedLabel: formatDataFreshnessTime(storedMeta.updatedAt) || "待更新",
+      aiLabel: storedMeta.aiStatus || (storedMeta.analysisKind === "ai" ? "AI 已生成" : "完整 AI 待模型"),
+    };
+  }
   const analysisStock = state.analysisStock?.code === stock.code ? state.analysisStock : null;
   if (
     analysisStock &&
@@ -15312,8 +15456,6 @@ function getWatchlistAnalysisMeta(stock) {
       aiLabel: "AI 已生成",
     };
   }
-  const visibleMeta = getVisibleCurrentStockAnalysisMeta(stock);
-  if (visibleMeta) return visibleMeta;
   return {
     probabilityLabel: "规则参考 待模型",
     ruleUpdatedLabel: "待更新",
@@ -15321,34 +15463,26 @@ function getWatchlistAnalysisMeta(stock) {
   };
 }
 
-function getVisibleCurrentStockAnalysisMeta(stock) {
-  if (!stock) return null;
-  const selectedTitle = String(elements.selectedStockName?.textContent || "");
-  const isOnlyWatchlistItem = state.watchlist.length === 1 && state.watchlist[0] === stock.code;
-  if (!selectedTitle.includes(stock.code) && !isOnlyWatchlistItem) return null;
-  const upsideText = String(elements.upsideValue?.textContent || "").trim();
-  const match = upsideText.match(/^(\d{1,3})%$/);
-  if (!match) return null;
-  const analysisText = [
-    elements.analysisState?.textContent || "",
-    elements.stockCoverageNote?.textContent || "",
-    elements.impactBadge?.textContent || "",
-  ].join(" ");
-  if (/完整 AI\s*已生成|完整 AI 分析已生成/.test(analysisText)) {
-    return {
-      probabilityLabel: `AI 参考 ${match[1]}%`,
-      ruleUpdatedLabel: "见当前主卡片",
-      aiLabel: "AI 已生成",
-    };
-  }
-  if (/规则参考\s*已生成|真实数据规则参考|规则参考/.test(analysisText)) {
-    return {
-      probabilityLabel: `规则参考 ${match[1]}%`,
-      ruleUpdatedLabel: "见当前主卡片",
-      aiLabel: "完整 AI 待模型",
-    };
-  }
-  return null;
+function updateWatchlistAnalysisMetaFromStock(stock) {
+  if (!stock?.code || !state.watchlist.includes(stock.code) || !hasFiniteMetric(stock.upside)) return;
+  const analysisKind = isFullRealAiAnalysis(stock) ? "ai" : isRuleReferenceAnalysis(stock) ? "rule" : "";
+  if (!analysisKind) return;
+  const updatedAt =
+    stock.generatedAt ||
+    stock.historySource?.updatedAt ||
+    stock.source?.updatedAt ||
+    new Date().toISOString();
+  state.watchlistAnalysisMeta = sanitizeWatchlistAnalysisMeta({
+    ...state.watchlistAnalysisMeta,
+    [stock.code]: {
+      code: stock.code,
+      analysisKind,
+      probability: Math.round(Number(stock.upside)),
+      updatedAt,
+      aiStatus: analysisKind === "ai" ? "AI 已生成" : "完整 AI 待模型",
+    },
+  });
+  localStorage.setItem("watchlistAnalysisMeta", JSON.stringify(state.watchlistAnalysisMeta));
 }
 
 function getWatchlistState() {

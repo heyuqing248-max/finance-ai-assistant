@@ -30,7 +30,7 @@ const healthyBaseRoutes = {
   "/api/project/progress": response(200, {
     progress: {
       updatedAt: "2026-06-14",
-      completed: ["后端 API、生产门禁规划、493 条自动化回归目标"],
+      completed: ["后端 API、生产门禁规划、494 条自动化回归目标"],
     },
   }),
 };

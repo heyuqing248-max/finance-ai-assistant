@@ -45,6 +45,7 @@ Note: real keys must only be stored in Render Dashboard Value fields, not in the
 | P1 | 完整真实 AI 稳定性验收 | 新增门禁 / Gate added | `npm run gate:full-ai -- --attempts 3 --interval-ms 10000 --analysis-timeout-ms 60000` 会连续检查完整 AI；任一轮降级规则参考即失败。 |
 | P1 | Responses API 非 JSON 修复 | 已增强 / Improved | Responses API 路径现在和 chat 路径一样，遇到不可解析 JSON 会使用 compact、ultra-compact 结构化提示重试。 |
 | P1 | 完整真实 AI 因 JSON/合规过滤未生成 | 已增强 / Improved | v142 保留免费 JSON 修复重试，并新增 provider 合规过滤安全改写重试：触发 `content_filter/safety/blocked/refusal/policy` 后自动要求无收益承诺、无买卖指令版本；仍失败则继续免费备用模型接力，全部失败保持规则参考。 |
+| P1 | 完整 AI 因免费模型限流没有生成 | 已补强 / Improved | v152 将默认输出 token 上限从 `1400` 降到 `800`，compact/ultra-compact 分别降到 `560/320`；AI 输入只传股票、风险、新闻/公告标题来源时间和宏观摘要，不传长正文；同一股票成功结果短时缓存 10 分钟，失败原因缓存 60 秒，避免重复点击继续消耗免费额度。 |
 | P1 | 429/额度不足时自动接力 | 已实现 / Implemented | AI relay 会按主模型、Gemini、OpenRouter、Groq、额外 OpenRouter/Groq 兼容模型尝试，并记录失败类型、冷却和下一步。 |
 | P1 | 首页主卡片同步后端分析结果 | 已修复 / Fixed | v124 前端把后端 `upsideProbability`、`downsideProbability`、`confidenceScore` 和 `actionReference` 写入主卡片；回归覆盖 `600519` 返回 `54%` / `65/100` 后不再显示 `待AI模型`。 |
 | P1 | 首屏加载短暂显示样例行情/样例情景 | 已修复 / Fixed | v125 加载中统一显示 `正在请求真实数据`，清空走势图、交易计划和情景价格；回归覆盖本地目录样例历史和后端误带 `local-sample` 情景时均不渲染。 |
@@ -57,14 +58,16 @@ Note: real keys must only be stored in Render Dashboard Value fields, not in the
 | P1 | 设置页数据源状态和首页状态不一致 | 已修复 / Fixed | v138 设置页拆成三层：`全局 provider 配置状态`、`当前股票本次请求状态`、`页面缓存/展示状态`。全局配置可继续显示待接入，但当前股票若已有真实报价、新闻、公告或宏观，会在本次请求层明确显示已连接/已获得。 |
 | P1 | 宏观更新时间缺少年份和频率 | 已修复 / Fixed | v147 宏观更新时间改用完整日期格式；World Bank Open Data 等年度宏观来源显示为 `YYYY-MM-DD · 年度宏观数据`，避免 `12/31 10:00` 这类缺少年份和频率的短格式。 |
 | P1 | 日期格式不统一 | 已修复 / Fixed | v148 统一覆盖提示日期：行情、新闻、公告、公开言论显示 `YYYY-MM-DD HH:mm`；宏观继续显示 `YYYY-MM-DD · 年度/季度/月度`，不再混用 `MM/DD HH:mm`。 |
-| P1 | 用户本机缓存会影响重新测试的默认股票 | 已修复 / Fixed | v149 测试链接支持 `?resetLocalState=true`，进入页面前清空 `lastSearch`、`recentSearches`、当前股票选择和搜索来源状态；默认回到 `Microsoft · MSFT`，也可用 `market=us&symbol=AAPL` 等参数指定启动股票，同时保留自选股、持仓、提醒、风险偏好等长期用户数据。 |
+| P1 | 用户本机缓存会影响重新测试的默认股票 | 已修复 / Fixed | v149 测试链接支持 `?resetLocalState=true`，进入页面前清空 `lastSearch`、`recentSearches`、当前股票选择和搜索来源状态；v152 进一步清空 AI 冷却锁、上次 provider relay、同股票失败缓存、自选股分析展示缓存和 prototype 临时状态。默认回到 `Microsoft · MSFT`，也可用 `market=us&symbol=AAPL` 等参数指定启动股票，同时保留真实自选股列表、持仓、提醒、风险偏好等长期用户数据。 |
 | P1 | 官方公告可信度被打成普通新闻默认分 | 已修复 / Fixed | v139 后端拆分普通新闻评分和官方公告评分。`SEC EDGAR`、`上海证券交易所公告`、`HKEXnews` 使用官方公告规则，回归固定为 SEC `96/100`、上交所 `95/100`、HKEX `94/100`，不再落到普通 RSS/default `62/100`。 |
 | P1 | 低可信新闻进入公司直接新闻主列表 | 已修复 / Fixed | v140 普通新闻若明确可信度低于 `70/100`，默认进入折叠区 `辅助参考`，不再作为 `公司直接新闻` 首屏展示；官方公告仍按公告路径优先展示。 |
 | P1 | 新闻相关性说明不够具体 | 已修复 / Fixed | v141 相关性说明改为具体命中原因：公司中文名、公司英文名、股票代码、公告接口、公开言论接口、产品关键词、供应链/监管关键词、行业关键词。 |
 | P1 | 新闻里仍有泛新闻进入公司直接新闻 | 已补强 / Improved | v150 公司直接新闻首屏从 5 条收紧为最强相关 3 条；只命中行业词或供应链/监管词的新闻继续进入行业/供应链/泛市场折叠区，低可信普通新闻仍进入辅助参考。 |
+| P1 | 预测性质新闻标题容易被误读 | 已修复 / Fixed | v152 对 `Can Apple Stock Reach $400 by 2028?` 这类标题自动添加 `媒体观点`、`非公司公告`、`不代表模型预测`、`仅作新闻参考` 标签，并显示警示：不代表公司公告，也不代表本产品模型预测。 |
 | P1 | AI 失败原因在首页仍偏笼统/技术化 | 已修复 / Fixed | v143 首页 AI 失败摘要固定为“完整 AI 暂不可用，当前显示规则参考。”；`主模型额度不足`、`备用模型限流`、`输出格式错误`、`安全校验失败` 等细节进入“展开技术诊断”。 |
+| P1 | 页面暴露 provider 原始错误 / 错误文本截断 | 已修复 / Fixed | v152 首页继续只显示“完整 AI 暂不可用，当前显示规则参考。”；provider 原始 message、错误码、模型、是否可重试、建议等待时间均放入折叠的技术诊断，普通区域不再直接展示 organization id、TPM、Used/Limit 等 provider 原文。 |
 | P1 | 新闻相关性和空状态 | 已改善，需继续抽检 / Improved, needs spot checks | 新闻先按直接相关性、重要性排序，再去重折叠；空状态显示来源、返回条数、过滤条数和更新时间。 |
-| P1 | 自选股卡片状态不一致 | 已改善 / Improved | 自选股区分规则参考和完整 AI 状态，避免把规则概率误显示为“无分析”。 |
+| P1 | 自选股卡片状态不一致 | 已修复 / Fixed | v152 自选股不再从当前主卡片可见文字猜概率；每只股票单独保存自己的规则/AI 参考概率、更新时间和完整 AI 状态，避免 Apple 主页面把当前概率误带到贵州茅台自选卡片。 |
 | P1 | 自选股卡片和当前主页面股票容易混淆 | 已修复 / Fixed | v150 自选股卡片新增 `当前查看`、`自选列表`、`对应股票`、`是否为当前页面股票`、`规则参考更新时间`、`完整 AI 状态`，避免 Apple 主页面下的贵州茅台自选股被误认为当前分析。 |
 | P2 | 设置页信息太多，普通用户难读 | 已修复 / Fixed | v146 设置页默认普通模式只保留模型状态摘要、账号、提醒和持仓；watchdog、门禁、provider、审计、数据库、后台任务、通知投递与 AI 技术细节全部进入默认折叠的 `诊断模式`。 |
 | P2 | 首页内部诊断信息偏多 | 已收敛 / Reduced | 普通用户只看能力摘要；门禁、provider、审计、配置细节放入折叠诊断。 |

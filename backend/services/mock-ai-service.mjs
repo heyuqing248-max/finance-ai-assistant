@@ -25,6 +25,10 @@ const riskAdjustments = {
   balanced: { upside: 0, sentiment: 0, valuation: 0, technical: 0 },
 };
 
+const liveAnalysisCache = new Map();
+const liveAnalysisSuccessCacheMs = 10 * 60 * 1000;
+const liveAnalysisFailureCacheMs = 60 * 1000;
+
 function clamp(value) {
   return Math.max(0, Math.min(100, value));
 }
@@ -192,7 +196,7 @@ function buildScenarioAnalysis({ stock, riskProfile, upsideProbability, confiden
     key,
     label,
     probability,
-    targetPrice: roundPrice(currentPrice * (1 + expectedReturn)),
+    targetPrice: currentPrice > 0 ? roundPrice(currentPrice * (1 + expectedReturn)) : null,
     expectedReturnPct: Number((expectedReturn * 100).toFixed(1)),
     summary,
   });
@@ -317,6 +321,51 @@ function buildPortfolioContext(stock, portfolioEntry) {
   }
 
   return context;
+}
+
+function cloneJson(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function liveAnalysisCacheKey({ stock, riskProfile, sourceContext, macroContext }) {
+  const sourceRefs = Array.isArray(sourceContext?.sourceRefs) ? sourceContext.sourceRefs : [];
+  const sourceSignature = sourceRefs
+    .slice(0, 5)
+    .map((ref) => [ref.type || "", ref.title || "", ref.sourceLabel || "", ref.publishedAt || ref.asOf || ""].join(":"))
+    .join("|");
+  return [
+    stock?.market || "",
+    stock?.code || "",
+    normalizeRiskProfile(riskProfile),
+    macroContext?.asOf || "",
+    sourceSignature,
+  ].join("::");
+}
+
+function readLiveAnalysisCache(key) {
+  const entry = liveAnalysisCache.get(key);
+  if (!entry) return null;
+  if (Number(entry.expiresAt) <= Date.now()) {
+    liveAnalysisCache.delete(key);
+    return null;
+  }
+  return cloneJson(entry);
+}
+
+function writeLiveAnalysisCache(key, entry) {
+  liveAnalysisCache.set(key, cloneJson(entry));
+  if (liveAnalysisCache.size > 80) {
+    const oldestKey = liveAnalysisCache.keys().next().value;
+    if (oldestKey) liveAnalysisCache.delete(oldestKey);
+  }
+}
+
+function throwCachedLiveAnalysisError(entry) {
+  const error = new Error(entry.error?.message || "真实 AI 模型短时间内已失败；当前使用缓存失败原因，避免重复触发免费额度限制。");
+  error.code = entry.error?.code || "REAL_AI_MODEL_CACHED_FAILURE";
+  error.providerRelay = entry.providerRelay || null;
+  error.cached = true;
+  throw error;
 }
 
 function normalizeMacroContext(macroContext) {
@@ -542,23 +591,62 @@ export function createMockAiService({ env = process.env } = {}) {
     },
 
     async generateLiveAnalysis({ stock, riskProfile, sourceContext, macroContext, portfolioEntry }) {
+      const normalizedRiskProfile = normalizeRiskProfile(riskProfile);
+      const cacheKey = liveAnalysisCacheKey({
+        stock,
+        riskProfile: normalizedRiskProfile,
+        sourceContext,
+        macroContext,
+      });
+      const cached = readLiveAnalysisCache(cacheKey);
+      if (cached?.status === "ok") {
+        return {
+          ...cached.analysis,
+          providerRelay: cached.providerRelay || null,
+          analysisProcess: {
+            ...(cached.analysis?.analysisProcess || {}),
+            cacheStatus: "local-ai-cache-hit",
+          },
+        };
+      }
+      if (cached?.status === "error") {
+        throwCachedLiveAnalysisError(cached);
+      }
       const result = await aiProviderAdapter.generateStructuredAnalysis({
         stock,
-        riskProfile: normalizeRiskProfile(riskProfile),
+        riskProfile: normalizedRiskProfile,
         sourceContext,
         macroContext,
         portfolioEntry,
       });
       if (result.status !== "ok") {
+        writeLiveAnalysisCache(cacheKey, {
+          status: "error",
+          error: {
+            code: result.error?.code || "REAL_AI_MODEL_EMPTY",
+            message:
+              result.error?.message ||
+              "真实 AI 模型短时间内未返回可展示分析；已缓存失败原因，避免重复请求免费模型。",
+          },
+          providerRelay: result.providerRelay || null,
+          expiresAt: Date.now() + liveAnalysisFailureCacheMs,
+        });
         const error = new Error(result.error?.message || "真实 AI 模型未返回可展示分析。");
         error.code = result.error?.code || "REAL_AI_MODEL_EMPTY";
         error.providerRelay = result.providerRelay || null;
         throw error;
       }
-      return {
+      const analysis = {
         ...result.analysis,
         providerRelay: result.providerRelay || null,
       };
+      writeLiveAnalysisCache(cacheKey, {
+        status: "ok",
+        analysis,
+        providerRelay: result.providerRelay || null,
+        expiresAt: Date.now() + liveAnalysisSuccessCacheMs,
+      });
+      return analysis;
     },
 
     generateAnalysis({ stock, riskProfile, sourceContext, macroContext, portfolioEntry }) {

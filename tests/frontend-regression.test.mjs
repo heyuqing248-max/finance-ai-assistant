@@ -534,6 +534,15 @@ test("watchlist card labels current page stock separately from watchlist stock",
     selectedMarket: "us",
     selectedStockCode: "AAPL",
     watchlist: JSON.stringify(["600519"]),
+    watchlistAnalysisMeta: JSON.stringify({
+      "600519": {
+        code: "600519",
+        analysisKind: "rule",
+        probability: 54,
+        updatedAt: "2026-06-15T08:00:00.000Z",
+        aiStatus: "完整 AI 待模型",
+      },
+    }),
   });
 
   const html = app.byId.get("watchlistItems").innerHTML;
@@ -541,7 +550,8 @@ test("watchlist card labels current page stock separately from watchlist stock",
   assert.match(html, /自选列表：贵州茅台 · 600519/);
   assert.match(html, /对应股票：贵州茅台 · 600519/);
   assert.match(html, /是否为当前页面股票：否/);
-  assert.match(html, /规则参考更新时间：待更新/);
+  assert.match(html, /规则参考 54%/);
+  assert.match(html, /规则参考更新时间/);
   assert.match(html, /完整 AI 待模型/);
 });
 
@@ -592,7 +602,7 @@ test("watchlist card reuses current analysis by code when market metadata is abs
   assert.doesNotMatch(app.byId.get("watchlistItems").innerHTML, /规则参考 待模型|完整 AI 待模型/);
 });
 
-test("watchlist card falls back to visible current rule metrics", () => {
+test("watchlist card does not reuse unsaved visible current rule metrics", () => {
   const app = createHarness({
     selectedMarket: "a",
     selectedStockCode: "600519",
@@ -606,12 +616,12 @@ test("watchlist card falls back to visible current rule metrics", () => {
   app.byId.get("addWatchButton").click();
 
   assert.match(app.byId.get("watchlistItems").innerHTML, /贵州茅台/);
-  assert.match(app.byId.get("watchlistItems").innerHTML, /规则参考 54%/);
+  assert.match(app.byId.get("watchlistItems").innerHTML, /规则参考 待模型/);
   assert.match(app.byId.get("watchlistItems").innerHTML, /完整 AI 待模型/);
-  assert.doesNotMatch(app.byId.get("watchlistItems").innerHTML, /规则参考 待模型|上涨参考概率 待AI模型/);
+  assert.doesNotMatch(app.byId.get("watchlistItems").innerHTML, /规则参考 54%|上涨参考概率 待AI模型/);
 });
 
-test("single watchlist card can reuse visible metrics when title is stale", () => {
+test("single watchlist card does not reuse visible metrics when title is stale", () => {
   const app = createHarness({
     selectedMarket: "a",
     selectedStockCode: "600519",
@@ -625,8 +635,9 @@ test("single watchlist card can reuse visible metrics when title is stale", () =
   app.byId.get("addWatchButton").click();
 
   assert.match(app.byId.get("watchlistItems").innerHTML, /贵州茅台/);
-  assert.match(app.byId.get("watchlistItems").innerHTML, /规则参考 54%/);
+  assert.match(app.byId.get("watchlistItems").innerHTML, /规则参考 待模型/);
   assert.match(app.byId.get("watchlistItems").innerHTML, /完整 AI 待模型/);
+  assert.doesNotMatch(app.byId.get("watchlistItems").innerHTML, /规则参考 54%/);
 });
 
 test("watchlist item can be removed", () => {
@@ -3081,7 +3092,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /493 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /494 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -3097,7 +3108,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /493 条自动化回归/);
+  assert.match(progressHtml, /494 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3112,7 +3123,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /493 条自动化回归/);
+  assert.match(progressHtml, /494 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3127,7 +3138,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /493 条自动化回归/);
+  assert.match(progressHtml, /494 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4174,10 +4185,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v151",
+    "finance-ai-assistant-v152",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v151/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v152/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4194,7 +4205,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v151",
+    "finance-ai-assistant-v152",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -14029,6 +14040,49 @@ test("connected backend news prioritizes direct stock relevance and labels weak 
   assert.match(html, /展开另外 5 条新闻/);
 });
 
+test("predictive media headlines are labeled as news reference instead of model forecast", async () => {
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "us",
+      selectedStockCode: "AAPL",
+    },
+    {
+      fetchImpl: async (url) => {
+        if (url.endsWith("/api/news?market=us&symbol=AAPL")) {
+          return {
+            ok: true,
+            json: async () => ({
+              market: "us",
+              sourceStatus: "real-provider",
+              items: [
+                {
+                  title: "Can Apple Stock Reach $400 by 2028?",
+                  source: "Yahoo Finance RSS",
+                  importance: 88,
+                  sourceCredibilityScore: 82,
+                },
+              ],
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadNews();
+
+  const html = app.byId.get("newsList").innerHTML;
+  assert.match(html, /Can Apple Stock Reach \$400 by 2028\?/);
+  assert.match(html, /媒体观点/);
+  assert.match(html, /非公司公告/);
+  assert.match(html, /不代表模型预测/);
+  assert.match(html, /仅作新闻参考/);
+  assert.match(html, /不代表公司公告，也不代表本产品模型预测/);
+});
+
 test("company direct news first screen keeps only the top three strongest items", async () => {
   const app = createHarness(
     {
@@ -15053,7 +15107,7 @@ test("real-data rule reference analysis is not labeled as full AI generation", a
   assert.equal(app.byId.get("analysisState").hidden, false);
   assert.match(app.byId.get("analysisState").innerHTML, /当前仅为规则分析/);
   assert.match(app.byId.get("analysisState").innerHTML, /真实数据规则参考/);
-  assert.match(app.byId.get("analysisState").innerHTML, /不是完整真实 AI 模型输出/);
+  assert.match(app.byId.get("analysisState").innerHTML, /完整 AI 暂不可用，当前显示规则参考/);
   assert.match(app.byId.get("analysisState").innerHTML, /analysis-mode-tag is-rule/);
   assert.match(app.byId.get("analysisState").innerHTML, /analysis-mode-tag is-ai-pending/);
   assert.match(app.byId.get("analysisState").innerHTML, /analysis-mode-tag is-data-rule/);
@@ -16345,7 +16399,7 @@ test("connected backend analysis failure keeps strict real-data empty state", as
   assert.equal(app.localStorage.getItem("apiMode"), "backend");
   assert.equal(app.localStorage.getItem("apiHealthStatus"), "connected");
   assert.equal(app.byId.get("selectedStockName").textContent, "Apple · AAPL");
-  assert.match(app.byId.get("analysisState").innerHTML, /真实模型待配置|真实模型待启用|真实 AI 等待生成/);
+  assert.match(app.byId.get("analysisState").innerHTML, /完整 AI 暂不可用/);
   assert.match(app.byId.get("analysisState").innerHTML, /真实 AI 模型尚未配置/);
   assert.match(app.byId.get("analysisState").innerHTML, /不展示样例建议/);
   assert.match(app.byId.get("analysisState").innerHTML, /重新检测 AI/);
@@ -17024,14 +17078,14 @@ test("connected backend analysis frontend timeout exits loading state without sa
   assert.equal(app.byId.get("valuationScore").textContent, "待AI模型");
   assert.equal(app.byId.get("technicalScore").textContent, "待AI模型");
   assert.equal(app.byId.get("actionText").textContent, "暂无真实 AI 分析。");
-  assert.match(app.byId.get("analysisState").innerHTML, /真实 AI 请求超时/);
+  assert.match(app.byId.get("analysisState").innerHTML, /完整 AI 暂不可用/);
   assert.match(app.byId.get("analysisState").innerHTML, /不展示样例建议/);
   assert.match(app.byId.get("statusMessage").textContent, /等待超时/);
   assert.doesNotMatch(app.byId.get("actionText").textContent, /谨慎持有|分批观察|加仓|积极模式/);
   assert.equal(requestedUrls.some((url) => url.includes("/api/analysis")), false);
 });
 
-test("AI quota advisory state does not globally block retry or fallback checks", async () => {
+test("AI quota advisory state caches same-stock retry and hides raw provider text on homepage", async () => {
   const requestedUrls = [];
   const app = createHarness(
     {
@@ -17126,8 +17180,8 @@ test("AI quota advisory state does not globally block retry or fallback checks",
     requestedUrls.filter((url) => url.includes("/api/analysis")).length,
     initialAnalysisRequests + 1,
   );
-  assert.match(app.byId.get("analysisState").innerHTML, /免费 AI 额度受限/);
-  assert.match(app.byId.get("analysisState").innerHTML, /不会全局锁死 AI 重试/);
+  assert.match(app.byId.get("analysisState").innerHTML, /完整 AI 暂不可用/);
+  assert.match(app.byId.get("analysisState").innerHTML, /当前显示规则参考/);
   assert.match(app.byId.get("analysisState").innerHTML, /重试\/检查备用模型/);
   assert.match(app.byId.get("analysisState").innerHTML, /gpt-5\.5 -&gt; gemini-2\.5-flash/);
   assert.match(app.byId.get("analysisState").innerHTML, /备用结果/);
@@ -17148,8 +17202,9 @@ test("AI quota advisory state does not globally block retry or fallback checks",
 
   assert.equal(
     requestedUrls.filter((url) => url.includes("/api/analysis")).length,
-    initialAnalysisRequests + 2,
+    initialAnalysisRequests + 1,
   );
+  assert.match(app.byId.get("statusMessage").textContent, /不重复请求免费 AI|缓存失败原因/);
 });
 
 test("risk profile change requests backend analysis when connected", async () => {
@@ -19232,7 +19287,7 @@ test("analysis section renders empty state", () => {
     prototypeAnalysisState: "empty",
   });
 
-  assert.match(app.byId.get("analysisState").innerHTML, /真实模型待配置|真实 AI 等待生成/);
+  assert.match(app.byId.get("analysisState").innerHTML, /完整 AI 暂不可用/);
   assert.match(app.byId.get("analysisState").innerHTML, /不展示样例建议/);
   assert.equal(app.byId.get("reasonList").hidden, true);
   assert.equal(app.byId.get("riskBox").hidden, true);
@@ -19244,7 +19299,7 @@ test("analysis section renders error state and retry keeps strict blank analysis
     prototypeAnalysisState: "error",
   });
 
-  assert.match(app.byId.get("analysisState").innerHTML, /真实模型待配置|真实 AI 等待生成/);
+  assert.match(app.byId.get("analysisState").innerHTML, /完整 AI 暂不可用/);
   assert.match(app.byId.get("analysisState").innerHTML, /不展示样例建议/);
   assert.match(app.byId.get("analysisState").innerHTML, /data-retry-analysis/);
 
@@ -20261,9 +20316,18 @@ test("resetLocalState query clears local search and current stock state before s
       selectedStockMetadata: JSON.stringify({ code: "0700", name: "腾讯控股", market: "hk" }),
       selectedStockSearchSourceCode: "0700",
       selectedStockSearchSourceStatus: "metadata-only-catalog",
+      aiAnalysisRetryLockedUntil: JSON.stringify({ stockCode: "0700", until: Date.now() + 60000 }),
+      aiModelCooldownUntil: String(Date.now() + 60000),
+      lastAiProviderRelay: JSON.stringify({ attempted: ["gpt-5.5"] }),
+      lastAnalysisFailureByStock: JSON.stringify({ "0700": { code: "REAL_AI_MODEL_RATE_LIMIT_OR_QUOTA" } }),
       lastSearch: "腾讯控股",
       recentSearches: JSON.stringify(["腾讯控股", "Apple"]),
       watchlist: JSON.stringify(["0700"]),
+      watchlistAnalysisMeta: JSON.stringify({
+        "0700": { code: "0700", analysisKind: "rule", probability: 54, updatedAt: "2026-06-15T00:00:00.000Z" },
+      }),
+      prototypeAnalysisState: "error",
+      prototypeWatchlistState: "loading",
     },
     {
       location: { search: "?resetLocalState=true" },
@@ -20276,6 +20340,13 @@ test("resetLocalState query clears local search and current stock state before s
   assert.equal(app.localStorage.getItem("selectedStockMetadata"), null);
   assert.equal(app.localStorage.getItem("selectedStockSearchSourceCode"), null);
   assert.equal(app.localStorage.getItem("selectedStockSearchSourceStatus"), null);
+  assert.equal(app.localStorage.getItem("aiAnalysisRetryLockedUntil"), null);
+  assert.equal(app.localStorage.getItem("aiModelCooldownUntil"), null);
+  assert.equal(app.localStorage.getItem("lastAiProviderRelay"), null);
+  assert.equal(app.localStorage.getItem("lastAnalysisFailureByStock"), null);
+  assert.equal(app.localStorage.getItem("watchlistAnalysisMeta"), null);
+  assert.equal(app.localStorage.getItem("prototypeAnalysisState"), null);
+  assert.equal(app.localStorage.getItem("prototypeWatchlistState"), null);
   assert.equal(app.localStorage.getItem("lastSearch"), null);
   assert.equal(app.localStorage.getItem("recentSearches"), null);
   assert.match(app.localStorage.getItem("watchlist"), /0700/);
