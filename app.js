@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v126";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v127";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、468 条自动化回归目标",
+    "后端 API、生产门禁规划、469 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -9407,7 +9407,7 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
   const ruleReferenceValue = ruleReferenceReady
     ? "已生成"
     : fullAiReady
-      ? "完整 AI 已生成"
+      ? "未单独生成"
       : "待真实数据";
   const fullAiValue = fullAiReady
     ? "已生成"
@@ -9446,7 +9446,7 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
     providerIssue
       ? `${providerIssue.label}：${providerIssue.message || "真实 provider 暂无可展示数据。"} 已保持空白，不使用样例数据。`
       : ruleReferenceReady
-        ? "规则参考已生成；完整 AI 未生成。未连接项保持空白。"
+        ? "真实数据规则参考已生成；完整 AI 未生成。未连接项保持空白。"
       : hasAnyRealCoverage
         ? "当前股票数据覆盖如下，未连接项保持空白。"
         : searchSourceStatus === "metadata-only-catalog"
