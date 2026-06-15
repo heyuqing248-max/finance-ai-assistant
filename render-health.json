@@ -1,0 +1,13 @@
+{
+  "service": "finance-ai-assistant-web",
+  "url": "https://finance-ai-assistant-web.onrender.com",
+  "ok": true,
+  "startedAt": "2026-06-15T03:55:43Z",
+  "endedAt": "2026-06-15T03:55:44Z",
+  "checks": [
+    {"name":"home","path":"/","ok":true,"status":200,"durationSeconds":0.288136},
+    {"name":"health","path":"/health","ok":true,"status":200,"durationSeconds":0.227308},
+    {"name":"apiHealth","path":"/api/health","ok":true,"status":200,"durationSeconds":0.536286}
+  ],
+  "note": "Manual seed generated once so the public status branch exists before the first scheduled GitHub Actions run. No secrets are written."
+}
