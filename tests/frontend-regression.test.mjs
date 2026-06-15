@@ -2977,7 +2977,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /479 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /480 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2993,7 +2993,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /479 条自动化回归/);
+  assert.match(progressHtml, /480 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3008,7 +3008,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /479 条自动化回归/);
+  assert.match(progressHtml, /480 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3023,7 +3023,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /479 条自动化回归/);
+  assert.match(progressHtml, /480 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4059,10 +4059,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v137",
+    "finance-ai-assistant-v138",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v137/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v138/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4079,7 +4079,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v137",
+    "finance-ai-assistant-v138",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -16237,6 +16237,28 @@ test("backend rule-reference analysis syncs returned metrics into main card", as
       apiHealthStatus: "connected",
       selectedMarket: "a",
       selectedStockCode: "600519",
+      apiProviderStatus: JSON.stringify({
+        id: "multi-free",
+        name: "真实数据 Provider",
+        mode: "real-provider",
+        status: "connected",
+        coverage: ["a", "hk", "us"],
+        realtimeStatus: {
+          marketQuote: "real-provider-enabled",
+          news: "not-ready",
+          filings: "not-ready",
+          macro: "not-ready",
+        },
+        providerRegistry: {
+          activeRuntimeProvider: "multi-free",
+          readyRequiredCount: 1,
+          requiredProviderCount: 3,
+          selectedProviders: [
+            { required: true, status: "ready-for-adapter", label: "行情 Provider" },
+            { required: true, status: "missing-config", label: "财经新闻与公告" },
+          ],
+        },
+      }),
     },
     {
       fetchImpl: async (url) => {
@@ -16297,6 +16319,17 @@ test("backend rule-reference analysis syncs returned metrics into main card", as
   assert.match(app.byId.get("stockCoverageNote").innerHTML, /新闻[\s\S]*已连接/);
   assert.match(app.byId.get("stockCoverageNote").innerHTML, /公告[\s\S]*已连接/);
   assert.match(app.byId.get("stockCoverageNote").innerHTML, /宏观[\s\S]*已连接/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /全局 provider 配置状态/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /全局 provider 配置状态[\s\S]*新闻 待接入/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /当前股票本次请求：贵州茅台 · 600519/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /当前股票本次请求[\s\S]*真实报价 已获得/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /当前股票本次请求[\s\S]*历史走势 缺失/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /当前股票本次请求[\s\S]*新闻 已连接/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /当前股票本次请求[\s\S]*公告 已连接/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /当前股票本次请求[\s\S]*宏观 已连接/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /页面缓存\/展示状态/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /页面缓存\/展示状态[\s\S]*报价展示 已展示/);
+  assert.match(app.byId.get("dataSourceState").innerHTML, /页面缓存\/展示状态[\s\S]*历史展示 缺失/);
   assert.match(app.byId.get("stockCoverageNote").textContent, /规则参考已生成；完整 AI 未生成/);
   assert.doesNotMatch(app.byId.get("stockCoverageNote").innerHTML, /AI[\s\S]*待AI模型|规则参考[\s\S]*待AI模型/);
   assert.doesNotMatch(app.byId.get("actionText").textContent, /暂无真实 AI 分析/);

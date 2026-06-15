@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v137";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v138";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、479 条自动化回归目标",
+    "后端 API、生产门禁规划、480 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -9488,6 +9488,90 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
       .map((item) => `${item.label} ${item.value}`)
       .join(" ")} ${freshnessItems.join(" ")}`;
   }
+}
+
+function getCurrentDataLayerStock() {
+  const selected = state.selectedStock;
+  const analyzed = state.analysisStock;
+  if (
+    analyzed &&
+    selected &&
+    analyzed.code === selected.code &&
+    (!analyzed.market || analyzed.market === selected.market)
+  ) {
+    return analyzed;
+  }
+  return selected;
+}
+
+function getCurrentStockRequestDataStatus(stock = getCurrentDataLayerStock()) {
+  if (!stock) {
+    return {
+      stockLabel: "当前股票未选择",
+      quote: "待请求",
+      history: "待请求",
+      news: "待请求",
+      filings: "待请求",
+      macro: "待请求",
+    };
+  }
+
+  const marketDataCoverage = stock.inputCoverage?.marketData || stock.marketDataCoverage;
+  const hasRealQuoteOrHistorySource = hasRealHistorySource(stock.historySource);
+  const quoteReady =
+    stock.source?.type === "real-provider-quote" ||
+    hasRealMarketQuoteCoverage(stock) ||
+    hasRealQuoteOrHistorySource ||
+    isRealCoverageValue(marketDataCoverage?.quote || marketDataCoverage);
+  const historyReady =
+    isRealCoverageValue(marketDataCoverage?.history || marketDataCoverage?.historyStatus) ||
+    (typeof marketDataCoverage === "string" && /history/i.test(marketDataCoverage)) ||
+    (hasRealQuoteOrHistorySource && normalizeHistoryPoints(stock.history).length >= 2);
+  const newsCoverage = getCurrentStockNewsCoverage(stock);
+  const newsReady =
+    newsCoverage.newsReady ||
+    newsCoverage.statementReady ||
+    isRealCoverageValue(stock.inputCoverage?.news) ||
+    hasRealSourceRef(stock, "news");
+  const filingsReady =
+    newsCoverage.filingsReady ||
+    isRealCoverageValue(stock.inputCoverage?.filings) ||
+    hasRealSourceRef(stock, "filing");
+  const macroReady = isRealCoverageValue(stock.inputCoverage?.macro) || hasRealSourceRef(stock, "macro");
+
+  return {
+    stockLabel: `${stock.name || stock.code || "当前股票"} · ${stock.code || "未标注"}`,
+    quote: quoteReady ? "已获得" : "待真实数据",
+    history: historyReady ? "已连接" : quoteReady ? "缺失" : "待真实数据",
+    news: newsReady ? "已连接" : "待真实数据",
+    filings: filingsReady ? "已连接" : "待真实数据",
+    macro: macroReady ? "已连接" : "待真实数据",
+  };
+}
+
+function getPageDisplayDataStatus() {
+  const visibleText = [
+    elements.stockCoverageNote?.textContent,
+    elements.trendSummary?.textContent,
+    elements.newsList?.textContent,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const displayStatus = (readyPattern, pendingPattern, missingLabel = "待展示") => {
+    if (readyPattern.test(visibleText)) return "已展示";
+    if (pendingPattern.test(visibleText)) return missingLabel;
+    return "待刷新";
+  };
+
+  return {
+    quote: displayStatus(/真实报价\s*已获得|最新真实报价|行情\s*已连接/i, /真实报价\s*待真实数据|行情\s*待真实数据/i),
+    history: displayStatus(/历史走势\s*已连接|真实走势区间/i, /历史走势\s*缺失|缺历史走势|暂无真实走势/i, "缺失"),
+    news: displayStatus(/新闻\s*已连接|高重要性新闻|新闻更新：/i, /新闻\s*待真实数据|暂未发现高重要性新闻/i),
+    filings: displayStatus(/公告\s*已连接|公告更新：/i, /公告\s*待真实数据/i),
+    macro: displayStatus(/宏观\s*已连接|宏观更新：/i, /宏观\s*待真实数据/i),
+  };
 }
 
 function getCurrentStockNewsCoverage(stock = state.selectedStock) {
@@ -13404,6 +13488,7 @@ function renderAnalysis(analysisState = getLocalAnalysisState()) {
     .map((reason) => `<li>${escapeHtml(reason)}</li>`)
     .join("");
   renderWatchlist();
+  renderDataSourceState(localStorage.getItem("apiHealthStatus") || "idle");
 }
 
 async function loadAnalysis() {
@@ -14233,6 +14318,7 @@ async function loadNews() {
     updateCurrentStockNewsCoverage(localState, { market, code: selectedSymbol });
     renderNews(localState);
     renderStockCoverageNote(state.analysisStock || state.selectedStock, getCurrentAnalysisStateForCoverage());
+    renderDataSourceState(localStorage.getItem("apiHealthStatus") || "idle");
     return localState;
   }
 
@@ -14324,6 +14410,7 @@ async function loadNews() {
     updateCurrentStockNewsCoverage(newsState, { market, code: selectedSymbol });
     renderNews(newsState);
     renderStockCoverageNote(state.analysisStock || state.selectedStock, getCurrentAnalysisStateForCoverage());
+    renderDataSourceState(localStorage.getItem("apiHealthStatus") || "idle");
     if (
       intelligenceResult.status === "rejected" ||
       filingsResult.status === "rejected" ||
@@ -14360,6 +14447,7 @@ async function loadNews() {
     updateCurrentStockNewsCoverage(emptyState, { market, code: selectedSymbol });
     renderNews(emptyState);
     renderStockCoverageNote(state.analysisStock || state.selectedStock, getCurrentAnalysisStateForCoverage());
+    renderDataSourceState(localStorage.getItem("apiHealthStatus") || "idle");
     showStatus("新闻 API 暂时不可用；已保持空白，不使用本机样例新闻。", "warning");
     return emptyState;
   }
@@ -16574,10 +16662,26 @@ function renderProviderOperationalSummary(provider) {
   const nextGap = missingGroups.length ? missingGroups.join(" / ") : "暂无必选 provider 缺口";
   const statusTone = provider.status?.includes("connected") ? "已连接" : provider.status || "状态未标注";
   const chips = [
-    `行情 ${marketQuoteReady ? "已连接" : "待接入"}`,
-    `新闻 ${newsReady ? "可请求/空白回退" : "待接入"}`,
-    `公告 ${filingsReady ? "已连接" : "待接入"}`,
-    `宏观 ${macroReady ? "已连接" : "待接入"}`,
+    `行情 ${marketQuoteReady ? "已配置" : "待接入"}`,
+    `新闻 ${newsReady ? "已配置/空白回退" : "待接入"}`,
+    `公告 ${filingsReady ? "已配置" : "待接入"}`,
+    `宏观 ${macroReady ? "已配置" : "待接入"}`,
+  ];
+  const currentRequest = getCurrentStockRequestDataStatus();
+  const pageDisplay = getPageDisplayDataStatus();
+  const requestChips = [
+    `真实报价 ${currentRequest.quote}`,
+    `历史走势 ${currentRequest.history}`,
+    `新闻 ${currentRequest.news}`,
+    `公告 ${currentRequest.filings}`,
+    `宏观 ${currentRequest.macro}`,
+  ];
+  const displayChips = [
+    `报价展示 ${pageDisplay.quote}`,
+    `历史展示 ${pageDisplay.history}`,
+    `新闻展示 ${pageDisplay.news}`,
+    `公告展示 ${pageDisplay.filings}`,
+    `宏观展示 ${pageDisplay.macro}`,
   ];
 
   return `
@@ -16586,8 +16690,17 @@ function renderProviderOperationalSummary(provider) {
         <strong>${escapeHtml(providerName)}</strong>
         <span>${escapeHtml(statusTone)} · 运行时 ${escapeHtml(runtime)} · 必选 ${escapeHtml(requiredText)}</span>
       </div>
-      <div class="provider-summary" aria-label="核心数据覆盖">
+      <div class="provider-summary" aria-label="全局 provider 配置状态">
+        <span>全局 provider 配置状态</span>
         ${chips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
+      </div>
+      <div class="provider-summary" aria-label="当前股票本次请求状态">
+        <span>当前股票本次请求：${escapeHtml(currentRequest.stockLabel)}</span>
+        ${requestChips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
+      </div>
+      <div class="provider-summary" aria-label="页面缓存和展示状态">
+        <span>页面缓存/展示状态</span>
+        ${displayChips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
       </div>
       <p>${escapeHtml(nextGap === "暂无必选 provider 缺口" ? "关键数据通道正在按真实数据模式运行；未连接项保持空白。" : `下一步缺口：${nextGap}。`)}</p>
     </div>
