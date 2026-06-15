@@ -44,7 +44,7 @@ test("initial shell does not hardcode sample analysis metrics", () => {
 });
 
 test("service worker precaches core shell and supports offline navigation fallback", () => {
-  assert.match(serviceWorker, /finance-ai-assistant-v133/);
+  assert.match(serviceWorker, /finance-ai-assistant-v134/);
   for (const asset of ["./index.html", "./styles.css", "./app.js", "./manifest.json"]) {
     assert.match(serviceWorker, new RegExp(asset.replace(/[./]/g, "\\$&")));
   }
