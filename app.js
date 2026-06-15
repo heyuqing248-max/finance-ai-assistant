@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v146";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v147";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、488 条自动化回归目标",
+    "后端 API、生产门禁规划、489 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -9340,6 +9340,66 @@ function formatDataFreshnessTime(value = "") {
   });
 }
 
+function formatIsoDateOnly(value = "") {
+  if (!value) return "";
+  const raw = String(value).trim();
+  if (/^\d{4}$/.test(raw)) return `${raw}-12-31`;
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return raw.slice(0, 10);
+  return new Date(parsed).toISOString().slice(0, 10);
+}
+
+function formatFullDateTime(value = "") {
+  if (!value) return "";
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return String(value).slice(0, 16);
+  const date = new Date(parsed);
+  const datePart = date.toISOString().slice(0, 10);
+  const timePart = date.toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `${datePart} ${timePart}`;
+}
+
+function getMacroFrequencyLabel(macroContext = null) {
+  if (!isPlainObject(macroContext)) return "";
+  const source = isPlainObject(macroContext.source) ? macroContext.source : {};
+  const provider = isPlainObject(macroContext.provider) ? macroContext.provider : {};
+  const context = isPlainObject(macroContext.context) ? macroContext.context : {};
+  const combinedText = [
+    macroContext.sourceStatus,
+    macroContext.summary,
+    macroContext.disclaimer,
+    source.label,
+    source.id,
+    provider.id,
+    provider.label,
+    context.provider,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (combinedText.includes("world bank")) return "年度宏观数据";
+  if (
+    context.frequency === "annual" ||
+    source.frequency === "annual" ||
+    provider.frequency === "annual" ||
+    /年度|annual/.test(combinedText)
+  ) {
+    return "年度数据";
+  }
+  return "";
+}
+
+function formatMacroFreshnessTime(value = "", macroContext = null) {
+  if (!value) return "";
+  const frequencyLabel = getMacroFrequencyLabel(macroContext);
+  if (frequencyLabel) return `${formatIsoDateOnly(value)} · ${frequencyLabel}`;
+  return formatFullDateTime(value);
+}
+
 function getLatestFreshnessValue(values = []) {
   const candidates = values
     .filter((value) => typeof value === "string" && value.trim())
@@ -9411,8 +9471,9 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
   const newsFreshness = formatDataFreshnessTime(newsCoverage.newsLastUpdated || newsCoverage.lastUpdated);
   const filingsFreshness = formatDataFreshnessTime(newsCoverage.filingsLastUpdated);
   const statementFreshness = formatDataFreshnessTime(newsCoverage.statementLastUpdated);
+  const macroFreshnessValue = stock.macroContextFreshness || getMacroFreshnessValue(stock.macroContext);
   const macroFreshness =
-    formatDataFreshnessTime(stock.macroContextFreshness || getMacroFreshnessValue(stock.macroContext)) ||
+    formatMacroFreshnessTime(macroFreshnessValue, stock.macroContext) ||
     (macroReady ? "provider 最新可见周期" : "");
   const analysisReady = analysisState?.status === "ready" && analysisState?.source === "backend";
   const ruleReferenceReady = analysisReady && isRuleReferenceAnalysis(stock);
