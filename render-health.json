@@ -1,13 +1,466 @@
 {
   "service": "finance-ai-assistant-web",
   "url": "https://finance-ai-assistant-web.onrender.com",
+  "publicUrl": "https://finance-ai-assistant-web.onrender.com",
   "ok": true,
-  "startedAt": "2026-06-15T03:55:43Z",
-  "endedAt": "2026-06-15T03:55:44Z",
-  "checks": [
-    {"name":"home","path":"/","ok":true,"status":200,"durationSeconds":0.288136},
-    {"name":"health","path":"/health","ok":true,"status":200,"durationSeconds":0.227308},
-    {"name":"apiHealth","path":"/api/health","ok":true,"status":200,"durationSeconds":0.536286}
+  "status": "healthy",
+  "updatedAt": "2026-06-15T10:09:40.862Z",
+  "startedAt": "2026-06-15T10:06:40.861Z",
+  "endedAt": "2026-06-15T10:09:40.862Z",
+  "healthStartedAt": "2026-06-15T10:06:40.861Z",
+  "healthEndedAt": "2026-06-15T10:09:40.862Z",
+  "healthWindowMs": 180000,
+  "healthIntervalMs": 30000,
+  "healthTimeoutMs": 30000,
+  "healthRequiredEndpoints": [
+    "/",
+    "/api/health",
+    "/api/analysis?symbol=MSFT&riskProfile=balanced",
+    "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+    "/api/ai-services"
   ],
-  "note": "Manual seed generated once so the public status branch exists before the first scheduled GitHub Actions run. No secrets are written."
+  "healthIterationCount": 6,
+  "healthSuccessCount": 6,
+  "healthFailureCount": 0,
+  "endpointSuccessCount": 30,
+  "endpointFailureCount": 0,
+  "transientFailureCount": 0,
+  "lastFailure": null,
+  "localFallbackOk": null,
+  "checks": [
+    {
+      "id": "home",
+      "label": "首页",
+      "path": "/",
+      "url": "https://finance-ai-assistant-web.onrender.com/",
+      "ok": true,
+      "status": 200,
+      "durationMs": 221,
+      "error": "",
+      "transport": "fetch"
+    },
+    {
+      "id": "api-health",
+      "label": "/api/health",
+      "path": "/api/health",
+      "url": "https://finance-ai-assistant-web.onrender.com/api/health",
+      "ok": true,
+      "status": 200,
+      "durationMs": 216,
+      "error": "",
+      "transport": "fetch"
+    },
+    {
+      "id": "analysis-msft",
+      "label": "/api/analysis MSFT",
+      "path": "/api/analysis?symbol=MSFT&riskProfile=balanced",
+      "url": "https://finance-ai-assistant-web.onrender.com/api/analysis?symbol=MSFT&riskProfile=balanced",
+      "ok": true,
+      "status": 200,
+      "durationMs": 1506,
+      "error": "",
+      "transport": "fetch"
+    },
+    {
+      "id": "stock-search-tencent",
+      "label": "股票搜索 腾讯控股",
+      "path": "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+      "url": "https://finance-ai-assistant-web.onrender.com/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+      "ok": true,
+      "status": 200,
+      "durationMs": 234,
+      "error": "",
+      "transport": "fetch"
+    },
+    {
+      "id": "ai-services",
+      "label": "/api/ai-services",
+      "path": "/api/ai-services",
+      "url": "https://finance-ai-assistant-web.onrender.com/api/ai-services",
+      "ok": true,
+      "status": 200,
+      "durationMs": 216,
+      "error": "",
+      "transport": "fetch"
+    }
+  ],
+  "iterations": [
+    {
+      "at": "2026-06-15T10:06:40.861Z",
+      "ok": true,
+      "results": [
+        {
+          "id": "home",
+          "label": "首页",
+          "path": "/",
+          "url": "https://finance-ai-assistant-web.onrender.com/",
+          "ok": true,
+          "status": 200,
+          "durationMs": 301,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "api-health",
+          "label": "/api/health",
+          "path": "/api/health",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/health",
+          "ok": true,
+          "status": 200,
+          "durationMs": 549,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "analysis-msft",
+          "label": "/api/analysis MSFT",
+          "path": "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "ok": true,
+          "status": 200,
+          "durationMs": 1555,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "stock-search-tencent",
+          "label": "股票搜索 腾讯控股",
+          "path": "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "ok": true,
+          "status": 200,
+          "durationMs": 249,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "ai-services",
+          "label": "/api/ai-services",
+          "path": "/api/ai-services",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/ai-services",
+          "ok": true,
+          "status": 200,
+          "durationMs": 251,
+          "error": "",
+          "transport": "fetch"
+        }
+      ]
+    },
+    {
+      "at": "2026-06-15T10:07:12.474Z",
+      "ok": true,
+      "results": [
+        {
+          "id": "home",
+          "label": "首页",
+          "path": "/",
+          "url": "https://finance-ai-assistant-web.onrender.com/",
+          "ok": true,
+          "status": 200,
+          "durationMs": 203,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "api-health",
+          "label": "/api/health",
+          "path": "/api/health",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/health",
+          "ok": true,
+          "status": 200,
+          "durationMs": 211,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "analysis-msft",
+          "label": "/api/analysis MSFT",
+          "path": "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "ok": true,
+          "status": 200,
+          "durationMs": 1251,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "stock-search-tencent",
+          "label": "股票搜索 腾讯控股",
+          "path": "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "ok": true,
+          "status": 200,
+          "durationMs": 206,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "ai-services",
+          "label": "/api/ai-services",
+          "path": "/api/ai-services",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/ai-services",
+          "ok": true,
+          "status": 200,
+          "durationMs": 236,
+          "error": "",
+          "transport": "fetch"
+        }
+      ]
+    },
+    {
+      "at": "2026-06-15T10:07:43.728Z",
+      "ok": true,
+      "results": [
+        {
+          "id": "home",
+          "label": "首页",
+          "path": "/",
+          "url": "https://finance-ai-assistant-web.onrender.com/",
+          "ok": true,
+          "status": 200,
+          "durationMs": 279,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "api-health",
+          "label": "/api/health",
+          "path": "/api/health",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/health",
+          "ok": true,
+          "status": 200,
+          "durationMs": 270,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "analysis-msft",
+          "label": "/api/analysis MSFT",
+          "path": "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "ok": true,
+          "status": 200,
+          "durationMs": 9587,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "stock-search-tencent",
+          "label": "股票搜索 腾讯控股",
+          "path": "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "ok": true,
+          "status": 200,
+          "durationMs": 316,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "ai-services",
+          "label": "/api/ai-services",
+          "path": "/api/ai-services",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/ai-services",
+          "ok": true,
+          "status": 200,
+          "durationMs": 320,
+          "error": "",
+          "transport": "fetch"
+        }
+      ]
+    },
+    {
+      "at": "2026-06-15T10:08:23.321Z",
+      "ok": true,
+      "results": [
+        {
+          "id": "home",
+          "label": "首页",
+          "path": "/",
+          "url": "https://finance-ai-assistant-web.onrender.com/",
+          "ok": true,
+          "status": 200,
+          "durationMs": 209,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "api-health",
+          "label": "/api/health",
+          "path": "/api/health",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/health",
+          "ok": true,
+          "status": 200,
+          "durationMs": 204,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "analysis-msft",
+          "label": "/api/analysis MSFT",
+          "path": "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "ok": true,
+          "status": 200,
+          "durationMs": 3324,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "stock-search-tencent",
+          "label": "股票搜索 腾讯控股",
+          "path": "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "ok": true,
+          "status": 200,
+          "durationMs": 221,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "ai-services",
+          "label": "/api/ai-services",
+          "path": "/api/ai-services",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/ai-services",
+          "ok": true,
+          "status": 200,
+          "durationMs": 692,
+          "error": "",
+          "transport": "fetch"
+        }
+      ]
+    },
+    {
+      "at": "2026-06-15T10:08:56.649Z",
+      "ok": true,
+      "results": [
+        {
+          "id": "home",
+          "label": "首页",
+          "path": "/",
+          "url": "https://finance-ai-assistant-web.onrender.com/",
+          "ok": true,
+          "status": 200,
+          "durationMs": 235,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "api-health",
+          "label": "/api/health",
+          "path": "/api/health",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/health",
+          "ok": true,
+          "status": 200,
+          "durationMs": 254,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "analysis-msft",
+          "label": "/api/analysis MSFT",
+          "path": "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "ok": true,
+          "status": 200,
+          "durationMs": 1282,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "stock-search-tencent",
+          "label": "股票搜索 腾讯控股",
+          "path": "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "ok": true,
+          "status": 200,
+          "durationMs": 225,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "ai-services",
+          "label": "/api/ai-services",
+          "path": "/api/ai-services",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/ai-services",
+          "ok": true,
+          "status": 200,
+          "durationMs": 245,
+          "error": "",
+          "transport": "fetch"
+        }
+      ]
+    },
+    {
+      "at": "2026-06-15T10:09:27.934Z",
+      "ok": true,
+      "results": [
+        {
+          "id": "home",
+          "label": "首页",
+          "path": "/",
+          "url": "https://finance-ai-assistant-web.onrender.com/",
+          "ok": true,
+          "status": 200,
+          "durationMs": 221,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "api-health",
+          "label": "/api/health",
+          "path": "/api/health",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/health",
+          "ok": true,
+          "status": 200,
+          "durationMs": 216,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "analysis-msft",
+          "label": "/api/analysis MSFT",
+          "path": "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "ok": true,
+          "status": 200,
+          "durationMs": 1506,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "stock-search-tencent",
+          "label": "股票搜索 腾讯控股",
+          "path": "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "ok": true,
+          "status": 200,
+          "durationMs": 234,
+          "error": "",
+          "transport": "fetch"
+        },
+        {
+          "id": "ai-services",
+          "label": "/api/ai-services",
+          "path": "/api/ai-services",
+          "url": "https://finance-ai-assistant-web.onrender.com/api/ai-services",
+          "ok": true,
+          "status": 200,
+          "durationMs": 216,
+          "error": "",
+          "transport": "fetch"
+        }
+      ]
+    }
+  ],
+  "stabilityGate": {
+    "externalUseReady": true,
+    "continuousHealthPassed": true,
+    "requiredDurationSeconds": 180,
+    "monitorWindowSeconds": 180,
+    "monitorIterationCount": 6,
+    "requiredEndpointCoverage": true,
+    "lastFailureType": ""
+  },
+  "note": "Generated by GitHub Actions or a local script to keep the free Render service warm and expose the latest 2-3 minute stable access gate. No secrets are written.",
+  "guidance": "公网预览在监控窗口内持续可用。"
 }
