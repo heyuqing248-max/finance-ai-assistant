@@ -1149,6 +1149,26 @@ select:focus {
   font-weight: 700;
 }
 
+.ai-diagnostic-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.ai-diagnostic-categories span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid #f0d28a;
+  border-radius: 999px;
+  background: #fff8e8;
+  color: #6d5200;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .ai-relay-row-list {
   display: grid;
   gap: 8px;

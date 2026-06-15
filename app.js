@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v142";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v143";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、484 条自动化回归目标",
+    "后端 API、生产门禁规划、485 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -12955,6 +12955,30 @@ function getAiRelayFailureRows(providerRelay = null, modelIssue = null, cooldown
   return rows.slice(0, 5);
 }
 
+function getAiTechnicalFailureCategories(relayRows = [], modelIssue = null) {
+  const categories = [];
+  const add = (label) => {
+    if (label && !categories.includes(label)) categories.push(label);
+  };
+  relayRows.forEach((row = {}) => {
+    const text = `${row.role || ""} ${row.model || ""} ${row.type || ""} ${row.technical || ""} ${row.callStatus || ""} ${row.outputStatus || ""} ${row.validationStatus || ""}`;
+    if (/主模型/i.test(text) && /额度不足|INSUFFICIENT|QUOTA|429/i.test(text)) add("主模型额度不足");
+    if (/备用/i.test(text) && /限流|速率|额度|RATE_LIMIT|QUOTA|429/i.test(text)) add("备用模型限流");
+    if (/INVALID_JSON|MISSING_METRICS|输出格式|缺少指标|缺少核心指标|结构化输出不完整|不可校验/i.test(text)) {
+      add("输出格式错误");
+    }
+    if (/SAFETY|安全校验|合规过滤|content[_-]?filter|blocked|refusal|policy/i.test(text)) {
+      add("安全校验失败");
+    }
+  });
+  const issueText = `${modelIssue?.code || ""} ${modelIssue?.message || ""}`;
+  if (/INSUFFICIENT|主模型.*额度|额度不足/i.test(issueText)) add("主模型额度不足");
+  if (/RATE_LIMIT|QUOTA|429|备用模型.*限流|速率受限/i.test(issueText)) add("备用模型限流");
+  if (/INVALID_JSON|MISSING_METRICS|输出格式|缺少指标|缺少核心指标/i.test(issueText)) add("输出格式错误");
+  if (/SAFETY|安全校验|合规过滤|content[_-]?filter|blocked|refusal|policy/i.test(issueText)) add("安全校验失败");
+  return categories;
+}
+
 function getAiModelRelaySlotSummary(providerRelay = null, cooldown = null) {
   const adapter = getAiServiceStatus()?.providerAdapter || {};
   const attemptedText = getProviderRelayAttemptText(providerRelay);
@@ -13084,34 +13108,7 @@ function renderAiProviderRelayDetails({ providerRelay = null, modelIssue = null,
     .join("；");
 
   if (compact) {
-    const isLimitedRow = (row = {}) =>
-      /额度|限流|速率|quota|rate|QUOTA|RATE_LIMIT|INSUFFICIENT|429/i.test(
-        `${row.type} ${row.callStatus} ${row.outputStatus} ${row.validationStatus}`,
-      );
-    const isValidationFailureRow = (row = {}) =>
-      /输出未通过安全校验|安全校验未通过|输出缺少|缺少指标|输出格式失败|JSON 输出不可校验|结构化输出不完整|MISSING_METRICS|INVALID_JSON|SAFETY_VALIDATION_FAILED/i.test(
-        `${row.type} ${row.callStatus} ${row.outputStatus} ${row.validationStatus}`,
-      );
-    const firstLimited = relayRows.find(isLimitedRow);
-    const firstValidation = relayRows.find(
-      (row) =>
-        row.model !== firstLimited?.model &&
-        isValidationFailureRow(row),
-    );
-    const relayRateLimited = rateLimited || relayRows.some(isLimitedRow);
-    const reasonParts = [
-      firstLimited ? `${firstLimited.model} ${firstLimited.type}` : "",
-      firstValidation ? `${firstValidation.model} ${firstValidation.type}` : "",
-    ].filter(Boolean);
-    const shortReason = reasonParts.length
-      ? reasonParts.join("；")
-      : friendlyFailure.type || "真实模型暂不可用";
-    const userReason = relayRateLimited
-      ? "主模型额度不足，备用模型限流或校验失败"
-      : firstValidation
-        ? "备用模型输出未通过安全校验"
-        : "完整 AI 暂不可用";
-    const retryHint = userRecovery.text || "可稍后重新检测完整 AI。";
+    const technicalCategories = getAiTechnicalFailureCategories(relayRows, modelIssue);
     return `
       <div class="ai-user-summary" aria-label="完整 AI 简要状态">
         <div class="analysis-mode-tags" aria-label="分析模式标签">
@@ -13120,15 +13117,15 @@ function renderAiProviderRelayDetails({ providerRelay = null, modelIssue = null,
           <span class="analysis-mode-tag is-data-rule">基于真实数据规则计算</span>
         </div>
         <strong>完整 AI 未生成</strong>
-        <p>原因：${escapeHtml(userReason)}。可稍后重试；当前保留基于真实数据的规则参考。</p>
-        <details class="ai-user-reason">
-          <summary>查看简要原因</summary>
-          <p>${escapeHtml(shortReason)}。${escapeHtml(retryHint)}</p>
-          <p class="ai-recovery-note">${escapeHtml(userRecovery.status === "wait-cooldown" ? "恢复提示：等待冷却结束后再检测完整 AI。" : userRecovery.status === "fallback-available" ? "恢复提示：可继续检查未冷却备用模型。" : "恢复提示：当前可重新检测完整 AI。")}</p>
-        </details>
+        <p>完整 AI 暂不可用，当前显示规则参考。</p>
       </div>
       <details class="ai-relay-diagnostics">
         <summary>展开技术诊断</summary>
+        <div class="ai-diagnostic-categories" aria-label="AI 失败原因分类">
+          ${(technicalCategories.length ? technicalCategories : ["失败原因待返回"])
+            .map((item) => `<span>${escapeHtml(item)}</span>`)
+            .join("")}
+        </div>
         <div class="ai-model-empty-grid" aria-label="真实 AI 模型接力状态">
           <span>模型接力</span>
           <strong>${escapeHtml(relayText)}</strong>
@@ -13146,6 +13143,8 @@ function renderAiProviderRelayDetails({ providerRelay = null, modelIssue = null,
           <strong>${escapeHtml(cooldownSummary.providerStatusText)}</strong>
           <span>备用尝试</span>
           <strong>${escapeHtml(cooldownSummary.fallbackActionText)}</strong>
+          <span>恢复提示</span>
+          <strong>${escapeHtml(userRecovery.text || "可稍后重新检测完整 AI。")}</strong>
           <span>备用槽位</span>
           <strong>${escapeHtml(relaySlots.slotText)}</strong>
           <span>剩余额度</span>
@@ -13469,7 +13468,6 @@ function renderAnalysis(analysisState = getLocalAnalysisState()) {
         <strong>当前仅为规则分析</strong>
         <p>本次概率来自真实行情、新闻、公告或宏观输入的规则计算，不是完整真实 AI 模型输出。</p>
         ${renderAiProviderRelayDetails({ providerRelay, modelIssue, cooldown: relayCooldown, compact: true })}
-        <p class="provider-note">如果主模型或备用模型触发 429/额度限制，系统会保留真实数据规则参考，并继续允许检查其它已配置备用模型。</p>
       </div>
     `;
   } else if (analysisState.status === "ready" && analysisState.source === "backend" && isFullRealAiAnalysis(stock)) {
