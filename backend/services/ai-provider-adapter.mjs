@@ -1244,12 +1244,31 @@ async function providerHttpError(response, label = "真实 AI 模型接口") {
       providerMessage,
     };
   }
+  if (isProviderSafetyFilterSignal({ status: response.status, providerCode, providerMessage })) {
+    return {
+      code: "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED",
+      message: `${label} 返回 ${response.status}${providerDetail}；provider 合规过滤触发，系统将尝试改写为无收益承诺、无买卖指令版本。`,
+      providerCode,
+      providerMessage,
+    };
+  }
   return {
     code: "REAL_AI_MODEL_HTTP_ERROR",
     message: `${label} 返回 ${response.status}${providerDetail}；本次保持空白。`,
     providerCode,
     providerMessage,
   };
+}
+
+function isProviderSafetyFilterSignal({ status = 0, providerCode = "", providerMessage = "" } = {}) {
+  const text = `${providerCode} ${providerMessage}`.toLowerCase();
+  if (!text.trim()) return false;
+  return (
+    [400, 403, 422].includes(Number(status)) &&
+    /(content[_-]?filter|safety|safe|blocked|blocklist|refusal|refused|policy|moderation|compliance|harm)/i.test(
+      text,
+    )
+  );
 }
 
 function fallbackConfigFromPrimary(config = {}, fallbackProvider = null) {
@@ -1293,6 +1312,7 @@ function shouldAttemptFallback(error = {}) {
     "REAL_AI_MODEL_PROVIDER_COOLDOWN_ACTIVE",
     "REAL_AI_MODEL_INSUFFICIENT_QUOTA",
     "REAL_AI_MODEL_RATE_LIMIT_OR_QUOTA",
+    "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED",
     "REAL_AI_MODEL_HTTP_ERROR",
     "REAL_AI_MODEL_TIMEOUT_EMPTY",
     "REAL_AI_MODEL_REQUEST_FAILED",
@@ -1310,7 +1330,7 @@ function modelErrorRetryAfterSeconds(error = {}) {
   if (code === "REAL_AI_MODEL_RATE_LIMIT_OR_QUOTA") return 10 * 60;
   if (code === "REAL_AI_MODEL_TIMEOUT_EMPTY") return 2 * 60;
   if (code === "REAL_AI_MODEL_HTTP_ERROR" || code === "REAL_AI_MODEL_REQUEST_FAILED") return 5 * 60;
-  if (code === "REAL_AI_MODEL_SAFETY_VALIDATION_FAILED") return 0;
+  if (code === "REAL_AI_MODEL_SAFETY_VALIDATION_FAILED" || code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED") return 0;
   if (code === "REAL_AI_MODEL_NOT_CONFIGURED") return 0;
   return 0;
 }
@@ -1347,6 +1367,14 @@ function modelErrorPhase(error = {}) {
       outputStatus: "输出包含不合规表达",
       validationStatus: "安全校验未通过",
       finalReason: "输出未通过安全校验",
+    };
+  }
+  if (code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED") {
+    return {
+      callStatus: "调用被拦截",
+      outputStatus: "provider 未返回可用输出",
+      validationStatus: "provider 合规过滤",
+      finalReason: "触发 provider 合规过滤",
     };
   }
   if (code === "REAL_AI_MODEL_INSUFFICIENT_QUOTA") {
@@ -1405,6 +1433,11 @@ function modelErrorNextStep(error = {}) {
       ? "已自动安全改写并再次校验，仍失败；本次降级为规则参考。"
       : "自动要求模型改写为合规表达后再次校验。";
   }
+  if (code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED") {
+    return error?.safetyRepairAttempted
+      ? "已用无收益承诺、无买卖指令版本重试，provider 仍过滤；继续尝试其他免费备用模型或降级规则参考。"
+      : "自动要求模型改写为无收益承诺、无买卖指令版本后再次校验。";
+  }
   if (code === "REAL_AI_MODEL_INVALID_JSON") {
     return "尝试 JSON 修复或更严格的结构化输出提示。";
   }
@@ -1434,7 +1467,10 @@ function createRelayAttempt({ role = "模型", model = "", error = null } = {}) 
     message: sanitizeText(error?.message || "", 260),
     providerCode: sanitizeText(error?.providerCode || "", 80),
     ...phase,
-    retryable: retryAfterSeconds > 0 || error?.code === "REAL_AI_MODEL_SAFETY_VALIDATION_FAILED",
+    retryable:
+      retryAfterSeconds > 0 ||
+      error?.code === "REAL_AI_MODEL_SAFETY_VALIDATION_FAILED" ||
+      error?.code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED",
     retryAfterSeconds,
     failedAt,
     retryAt,
@@ -1445,6 +1481,8 @@ function createRelayAttempt({ role = "模型", model = "", error = null } = {}) 
         ? "repair-passed"
         : "repair-failed"
       : error?.code === "REAL_AI_MODEL_SAFETY_VALIDATION_FAILED"
+        ? "repair-available"
+        : error?.code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED"
         ? "repair-available"
         : "not-required",
     metricRepairAttempted: error?.metricRepairAttempted === true,
@@ -1734,6 +1772,24 @@ async function callOpenAiCompatibleStructuredAnalysis(input = {}, config, option
 
     if (!response.ok) {
       const error = await providerHttpError(response);
+      if (error.code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED" && !safetyRepair) {
+        return callOpenAiCompatibleStructuredAnalysis(input, config, {
+          ...options,
+          compact: true,
+          ultraCompact: true,
+          safetyRepair: true,
+        });
+      }
+      if (error.code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED" && safetyRepair) {
+        return {
+          status: "provider-error",
+          error: {
+            ...error,
+            safetyRepairAttempted: true,
+            safetyRepairPassed: false,
+          },
+        };
+      }
       if (isGeminiOpenAiCompatibleConfig(config) && !compact && response.status >= 500) {
         return callOpenAiCompatibleStructuredAnalysis(input, config, { compact: true });
       }
@@ -1916,6 +1972,19 @@ async function callOpenAiResponsesStructuredAnalysis(input = {}, config, options
 
     if (!response.ok) {
       const error = await providerHttpError(response, "真实 AI 模型 Responses API");
+      if (error.code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED" && !safetyRepair) {
+        return callOpenAiResponsesStructuredAnalysis(input, config, { safetyRepair: true });
+      }
+      if (error.code === "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED" && safetyRepair) {
+        return {
+          status: "provider-error",
+          error: {
+            ...error,
+            safetyRepairAttempted: true,
+            safetyRepairPassed: false,
+          },
+        };
+      }
       return {
         status: "provider-error",
         error,

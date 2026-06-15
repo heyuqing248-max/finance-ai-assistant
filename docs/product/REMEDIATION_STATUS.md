@@ -42,6 +42,7 @@ Note: real keys must only be stored in Render Dashboard Value fields, not in the
 | P1 | 完整真实 AI 输出 | 已跑通但需持续监控 / Proven but not continuously guaranteed | v123 线上 MSFT 曾返回 `analysisMode=real-provider`；Render key redeploy 后，`600519` 也返回 `HTTP 200` 且成功模型为 `openai/gpt-oss-120b`。连续调用仍可能因 provider 额度/冷却降级规则参考。 |
 | P1 | 完整真实 AI 稳定性验收 | 新增门禁 / Gate added | `npm run gate:full-ai -- --attempts 3 --interval-ms 10000 --analysis-timeout-ms 60000` 会连续检查完整 AI；任一轮降级规则参考即失败。 |
 | P1 | Responses API 非 JSON 修复 | 已增强 / Improved | Responses API 路径现在和 chat 路径一样，遇到不可解析 JSON 会使用 compact、ultra-compact 结构化提示重试。 |
+| P1 | 完整真实 AI 因 JSON/合规过滤未生成 | 已增强 / Improved | v142 保留免费 JSON 修复重试，并新增 provider 合规过滤安全改写重试：触发 `content_filter/safety/blocked/refusal/policy` 后自动要求无收益承诺、无买卖指令版本；仍失败则继续免费备用模型接力，全部失败保持规则参考。 |
 | P1 | 429/额度不足时自动接力 | 已实现 / Implemented | AI relay 会按主模型、Gemini、OpenRouter、Groq、额外 OpenRouter/Groq 兼容模型尝试，并记录失败类型、冷却和下一步。 |
 | P1 | 首页主卡片同步后端分析结果 | 已修复 / Fixed | v124 前端把后端 `upsideProbability`、`downsideProbability`、`confidenceScore` 和 `actionReference` 写入主卡片；回归覆盖 `600519` 返回 `54%` / `65/100` 后不再显示 `待AI模型`。 |
 | P1 | 首屏加载短暂显示样例行情/样例情景 | 已修复 / Fixed | v125 加载中统一显示 `正在请求真实数据`，清空走势图、交易计划和情景价格；回归覆盖本地目录样例历史和后端误带 `local-sample` 情景时均不渲染。 |

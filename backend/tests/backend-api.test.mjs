@@ -4603,6 +4603,107 @@ test("ai-provider adapter repairs unsafe Responses output before publishing full
   }
 });
 
+test("ai-provider adapter retries provider safety filter with compliant rewrite before fallback", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  const successfulAnalysisJson = JSON.stringify({
+    upsideProbability: 56,
+    downsideProbability: 44,
+    sentimentScore: 60,
+    valuationScore: 53,
+    technicalScore: 57,
+    confidenceScore: 62,
+    actionReference: "模型参考：保持观察，等待更多真实证据确认。",
+    reasons: ["安全改写后输出无收益承诺、无买卖指令。"],
+    risks: ["免费模型可能再次触发 provider 过滤或限流。"],
+    factorBreakdown: [
+      { key: "macro", label: "宏观经济", score: 58, weight: 15, summary: "宏观数据中性。" },
+      { key: "industry", label: "行业分析", score: 56, weight: 15, summary: "行业趋势待确认。" },
+      { key: "fundamentals", label: "公司基本盘", score: 60, weight: 20, summary: "基本盘稳定。" },
+      { key: "valuation", label: "估值分析", score: 53, weight: 15, summary: "估值中性。" },
+      { key: "technical", label: "技术分析", score: 57, weight: 15, summary: "走势温和。" },
+      { key: "sentiment", label: "市场情绪", score: 60, weight: 20, summary: "情绪略偏正面。" },
+    ],
+    scenarioAnalysis: {
+      horizon: "2-8 周",
+      cases: [
+        { key: "bull", label: "乐观", probability: 30, summary: "催化继续。" },
+        { key: "base", label: "基准", probability: 46, summary: "震荡观察。" },
+        { key: "bear", label: "谨慎", probability: 24, summary: "风险偏好回落。" },
+      ],
+    },
+    tradePlan: {
+      summary: "仅作研究观察，不构成买卖建议。",
+      disclaimer: "不构成投资建议、交易指令或收益承诺。",
+    },
+    analysisProcess: { version: "real-model-analysis-v1", mode: "safety-filter-repaired" },
+    warnings: ["模型参考，不构成投资建议。"],
+    disclaimer: "模型参考概率仅供研究参考，不构成投资建议或收益承诺。",
+  });
+  globalThis.fetch = async (url, options = {}) => {
+    requests.push({ url, options });
+    if (requests.length <= 2) {
+      return {
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: {
+            code: "content_filter",
+            message: "Response was blocked by provider safety policy.",
+          },
+        }),
+      };
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: successfulAnalysisJson } }],
+      }),
+    };
+  };
+
+  try {
+    const adapter = createAiProviderAdapter({
+      env: {
+        FINANCE_AI_MODEL_PROVIDER: "openai-compatible",
+        FINANCE_AI_MODEL_API_KEY: "primary-key",
+        FINANCE_AI_MODEL_ID: "primary-free-model",
+        FINANCE_AI_MODEL_BASE_URL: "https://primary-model.test/v1",
+        FINANCE_AI_MODEL_API_STYLE: "chat-completions",
+        FINANCE_AI_MODEL_ALLOW_NETWORK: "true",
+        FINANCE_AI_MODEL_RUNTIME: "local-real-model-smoke",
+        FINANCE_AI_MODEL_FALLBACK_API_KEY: "fallback-key",
+        FINANCE_AI_MODEL_FALLBACK_ID: "fallback-free-model",
+        FINANCE_AI_MODEL_FALLBACK_BASE_URL: "https://fallback-model.test/v1",
+        FINANCE_AI_MODEL_FALLBACK_API_STYLE: "chat-completions",
+        FINANCE_AI_MODEL_FALLBACK_ALLOW_NETWORK: "true",
+      },
+    });
+
+    const result = await adapter.generateStructuredAnalysis({
+      stock: { code: "MSFT", name: "Microsoft", market: "us", samplePrice: 100 },
+      riskProfile: "balanced",
+      sourceContext: {
+        sourceRefs: [{ type: "news", title: "Microsoft headline", sourceLabel: "Yahoo Finance RSS" }],
+      },
+      macroContext: { status: "ok", market: "us", summary: "美国宏观指标来自 World Bank Open Data。" },
+    });
+
+    assert.equal(result.status, "ok");
+    assert.equal(requests.length, 3);
+    assert.match(JSON.stringify(JSON.parse(requests[1].options.body).messages), /上一次输出未通过合规校验/);
+    assert.equal(result.providerRelay.used, "fallback-free-model");
+    assert.equal(result.providerRelay.attempts[0].code, "REAL_AI_MODEL_PROVIDER_SAFETY_FILTERED");
+    assert.equal(result.providerRelay.attempts[0].safetyRepairAttempted, true);
+    assert.equal(result.providerRelay.attempts[0].safetyRepairStatus, "repair-failed");
+    assert.equal(result.providerRelay.attempts[1].finalReason, "完整 AI 分析已生成");
+    assert.equal(result.analysis.analysisService.mode, "real-provider");
+    assert.doesNotMatch(JSON.stringify(result.analysis), /必须买入|必须卖出|保证收益|无风险/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("ai-provider adapter continues relay across multiple fallback model slots", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
