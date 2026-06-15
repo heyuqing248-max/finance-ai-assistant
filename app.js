@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v130";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v131";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、472 条自动化回归目标",
+    "后端 API、生产门禁规划、473 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -14902,10 +14902,7 @@ function renderWatchlist(stateOverride = null) {
 }
 
 function getWatchlistAnalysisMeta(stock) {
-  const analysisStock =
-    state.analysisStock?.code === stock.code && state.analysisStock?.market === stock.market
-      ? state.analysisStock
-      : null;
+  const analysisStock = state.analysisStock?.code === stock.code ? state.analysisStock : null;
   if (
     analysisStock &&
     isRuleReferenceAnalysis(analysisStock) &&

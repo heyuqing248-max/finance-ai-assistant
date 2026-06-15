@@ -527,6 +527,53 @@ test("watchlist card distinguishes rule reference from full AI pending", async (
   assert.doesNotMatch(app.byId.get("watchlistItems").innerHTML, /上涨参考概率 待AI模型|AI 待真实模型/);
 });
 
+test("watchlist card reuses current analysis by code when market metadata is absent", async () => {
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "a",
+      selectedStockCode: "600519",
+      watchlist: JSON.stringify(["600519"]),
+    },
+    {
+      fetchImpl: async (url) => {
+        if (url.includes("/api/analysis")) {
+          return {
+            ok: true,
+            json: async () => ({
+              symbol: "600519",
+              analysisMode: "real-provider",
+              analysisService: { mode: "real-provider", id: "real-ai-analysis" },
+              upsideProbability: 55,
+              downsideProbability: 45,
+              confidenceScore: 44,
+              actionReference: "完整 AI 参考：保持观察。",
+              reasons: ["完整 AI 输出已通过结构化校验。"],
+              risks: ["仍需持续核对真实来源。"],
+              inputCoverage: {
+                marketData: "missing",
+                news: "backend-real-provider-news",
+                filings: "backend-real-provider-filings",
+                macro: "backend-real-provider-macro",
+                model: "real-provider",
+              },
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ status: "empty", mode: "empty-no-fixture", items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadAnalysis();
+
+  assert.match(app.byId.get("watchlistItems").innerHTML, /贵州茅台/);
+  assert.match(app.byId.get("watchlistItems").innerHTML, /AI 参考 55%/);
+  assert.match(app.byId.get("watchlistItems").innerHTML, /AI 已生成/);
+  assert.doesNotMatch(app.byId.get("watchlistItems").innerHTML, /规则参考 待模型|完整 AI 待模型/);
+});
+
 test("watchlist item can be removed", () => {
   const app = createHarness();
 
@@ -2893,7 +2940,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /472 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /473 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2909,7 +2956,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /472 条自动化回归/);
+  assert.match(progressHtml, /473 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -2924,7 +2971,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /472 条自动化回归/);
+  assert.match(progressHtml, /473 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -2939,7 +2986,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /472 条自动化回归/);
+  assert.match(progressHtml, /473 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -3975,10 +4022,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v130",
+    "finance-ai-assistant-v131",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v130/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v131/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -3995,7 +4042,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v130",
+    "finance-ai-assistant-v131",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
