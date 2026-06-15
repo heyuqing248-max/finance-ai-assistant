@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v125";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v126";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,8 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、467 条自动化回归目标",
+    "后端 API、生产门禁规划、468 条自动化回归目标",
+    "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
     "多智能体分析过程已进入本地 Demo：分析师分工、多空辩论、研究经理和风控复核可见",
@@ -9372,6 +9373,10 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
   const quoteReady =
     stock.source?.type === "real-provider-quote" ||
     isRealCoverageValue(marketDataCoverage?.quote || marketDataCoverage);
+  const historyReady =
+    isRealCoverageValue(marketDataCoverage?.history || marketDataCoverage?.historyStatus) ||
+    (typeof marketDataCoverage === "string" && /history/i.test(marketDataCoverage)) ||
+    (hasRealHistorySource(stock.historySource) && normalizeHistoryPoints(stock.history).length >= 2);
   const newsReady =
     newsCoverage.newsReady ||
     newsCoverage.statementReady ||
@@ -9394,19 +9399,25 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
     (macroReady ? "provider 最新可见周期" : "");
   const analysisReady = analysisState?.status === "ready" && analysisState?.source === "backend";
   const ruleReferenceReady = analysisReady && isRuleReferenceAnalysis(stock);
+  const fullAiReady = analysisReady && isFullRealAiAnalysis(stock);
   const aiService = getAiServiceStatus();
   const aiProviderAdapter = aiService?.providerAdapter;
   const realAiRuntimeReady =
     aiService?.mode === "real-provider" || canCallAnyConfiguredAiModel(aiService);
-  const aiValue = analysisReady
-    ? ruleReferenceReady
-      ? "规则参考"
-      : "已生成"
-    : realAiRuntimeReady
-      ? "已连接"
-      : aiProviderAdapter?.configured
-        ? "待启用模型"
-        : "待配置模型";
+  const ruleReferenceValue = ruleReferenceReady
+    ? "已生成"
+    : fullAiReady
+      ? "完整 AI 已生成"
+      : "待真实数据";
+  const fullAiValue = fullAiReady
+    ? "已生成"
+    : ruleReferenceReady
+      ? "未生成"
+      : realAiRuntimeReady
+        ? "可检测"
+        : aiProviderAdapter?.configured
+          ? "待启用模型"
+          : "待配置模型";
   const hasAnyRealCoverage = quoteReady || newsReady || filingsReady || macroReady || analysisReady;
   const identifyLabel =
     hasAnyRealCoverage
@@ -9417,11 +9428,12 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
   const identifyTone = hasAnyRealCoverage || searchSourceStatus !== "metadata-only-catalog" ? "ready" : "limited";
   const items = [
     { label: "股票", value: identifyLabel, tone: identifyTone },
-    { label: "行情", value: quoteReady ? "已连接" : quotaLimited ? "额度限制" : "待真实数据", tone: quoteReady ? "ready" : "limited" },
+    { label: "行情", value: quoteReady ? (historyReady ? "已连接" : "已连接 / 缺历史走势") : quotaLimited ? "额度限制" : "待真实数据", tone: quoteReady ? "ready" : "limited" },
     { label: "新闻", value: newsReady ? "已连接" : newsCoverage.issueLabel || (quotaLimited ? "额度限制" : "待真实数据"), tone: newsReady ? "ready" : "limited" },
     { label: "公告", value: filingsReady ? "已连接" : "待真实数据", tone: filingsReady ? "ready" : "limited" },
     { label: "宏观", value: macroReady ? "已连接" : "待真实数据", tone: macroReady ? "ready" : "limited" },
-    { label: "AI", value: aiValue, tone: analysisReady || realAiRuntimeReady ? "ready" : "limited" },
+    { label: "规则参考", value: ruleReferenceValue, tone: ruleReferenceReady || fullAiReady ? "ready" : "limited" },
+    { label: "完整 AI", value: fullAiValue, tone: fullAiReady || realAiRuntimeReady ? "ready" : "limited" },
   ];
   const freshnessItems = [
     buildFreshnessItem("行情", quoteFreshness, quoteReady),
@@ -9434,7 +9446,7 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
     providerIssue
       ? `${providerIssue.label}：${providerIssue.message || "真实 provider 暂无可展示数据。"} 已保持空白，不使用样例数据。`
       : ruleReferenceReady
-        ? "当前概率为真实数据规则参考，未连接项保持空白。"
+        ? "规则参考已生成；完整 AI 未生成。未连接项保持空白。"
       : hasAnyRealCoverage
         ? "当前股票数据覆盖如下，未连接项保持空白。"
         : searchSourceStatus === "metadata-only-catalog"
@@ -13352,7 +13364,7 @@ function renderAnalysis(analysisState = getLocalAnalysisState()) {
     elements.analysisState.innerHTML = `
       <div class="state-panel rule-reference-state">
         <div class="analysis-mode-tags" aria-label="规则参考状态标签">
-          <span class="analysis-mode-tag is-rule">规则参考</span>
+          <span class="analysis-mode-tag is-rule">规则参考 已生成</span>
           <span class="analysis-mode-tag is-ai-pending">完整 AI 未生成</span>
           <span class="analysis-mode-tag is-data-rule">基于真实数据规则计算</span>
         </div>
