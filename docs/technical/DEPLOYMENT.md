@@ -102,6 +102,22 @@ Real keys must still be entered manually in the Render Dashboard. After deployme
 
 ## 部署后验收 / Post-Deploy Verification
 
+## 免费冷启动预热 / Free Cold-Start Warmup
+
+Render 免费服务可能在无人访问后冷启动，第一次打开时会先看到 Render loading 页面。当前免费处理方式：
+
+- 演示前先手动打开 `https://finance-ai-assistant-web.onrender.com`，等首页加载完成后再分享。
+- GitHub Actions 工作流 `.github/workflows/render-health-warmup.yml` 每 10 分钟请求 `/`、`/health`、`/api/health`，尽量保持服务热状态。
+- 最近一次健康检查发布到独立分支 `render-health-status`，不提交到 `main`，避免触发 Render 反复 redeploy。
+- 公开 JSON 状态文件：`https://raw.githubusercontent.com/heyuqing248-max/finance-ai-assistant/render-health-status/render-health.json`
+
+Free Render services can cold-start after inactivity, so the first visitor may see Render's loading page. Current free mitigation:
+
+- Before a demo, open `https://finance-ai-assistant-web.onrender.com` manually and wait for the homepage to finish loading before sharing it.
+- GitHub Actions workflow `.github/workflows/render-health-warmup.yml` requests `/`, `/health`, and `/api/health` every 10 minutes to keep the service warm when possible.
+- The latest health check is published to the separate `render-health-status` branch, not `main`, avoiding repeated Render redeploys.
+- Public JSON status file: `https://raw.githubusercontent.com/heyuqing248-max/finance-ai-assistant/render-health-status/render-health.json`
+
 如果要先生成固定托管交接包，运行：
 
 ```bash
