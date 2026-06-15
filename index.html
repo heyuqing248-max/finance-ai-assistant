@@ -209,102 +209,15 @@
         </section>
 
         <section class="settings-grid" id="settings">
-          <article class="panel">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">测试版状态</p>
-                <h2>当前可用能力</h2>
-              </div>
-            </div>
-            <div class="data-source-state" id="projectProgressState"></div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">数据源状态</p>
-                <h2>真实数据源与后端 API</h2>
-              </div>
-            </div>
-            <div class="data-source-state" id="dataSourceState"></div>
-          </article>
-
           <article class="panel" id="ai-model-settings">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">AI 服务状态</p>
-                <h2>分析模型与合规边界</h2>
+                <p class="eyebrow">模型状态摘要</p>
+                <h2>AI 分析可用状态</h2>
               </div>
             </div>
             <div class="data-source-state" id="aiServiceState"></div>
           </article>
-
-          <article class="panel">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">合规策略状态</p>
-                <h2>免责声明与建议边界</h2>
-              </div>
-            </div>
-            <div class="data-source-state" id="complianceServiceState"></div>
-          </article>
-
-          <details class="developer-settings">
-            <summary>
-              <span>展开开发者诊断详情</span>
-              <small>数据库、审计、仓储和后台任务</small>
-            </summary>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">数据存储状态</p>
-                  <h2>仓储模式与持久化边界</h2>
-                </div>
-              </div>
-              <div class="data-source-state" id="repositoryState"></div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">数据库服务状态</p>
-                  <h2>生产数据库准备度</h2>
-                </div>
-              </div>
-              <div class="data-source-state" id="databaseState"></div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">审计服务状态</p>
-                  <h2>日志保留与脱敏边界</h2>
-                </div>
-              </div>
-              <div class="data-source-state" id="auditServiceState"></div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">任务运行状态</p>
-                  <h2>定时提醒与后台任务</h2>
-                </div>
-              </div>
-              <div class="data-source-state" id="jobRunnerState"></div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">调度服务状态</p>
-                  <h2>任务计划与队列边界</h2>
-                </div>
-              </div>
-              <div class="data-source-state" id="schedulerState"></div>
-            </article>
-          </details>
 
           <article class="panel">
             <div class="panel-heading">
@@ -332,7 +245,6 @@
             </div>
             <div class="channel-state-list" id="notificationChannelState"></div>
             <p class="helper-text" id="notificationStatus">提醒偏好会先保存在本机，真实推送将在后端阶段接入。</p>
-            <div class="data-source-state compact-service-state" id="notificationServiceState"></div>
             <form class="reminder-form" id="reminderForm">
               <label>
                 <span>提醒股票</span>
@@ -392,6 +304,103 @@
             </form>
             <div class="portfolio-summary" id="portfolioSummary" hidden></div>
           </article>
+
+          <details class="developer-settings">
+            <summary>
+              <span>诊断模式</span>
+              <small>watchdog、门禁、provider、审计、数据库与 AI 技术细节</small>
+            </summary>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">测试版状态</p>
+                  <h2>当前可用能力与上线门禁</h2>
+                </div>
+              </div>
+              <div class="data-source-state" id="projectProgressState"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">数据源诊断</p>
+                  <h2>真实数据源、provider 与 watchdog</h2>
+                </div>
+              </div>
+              <div class="data-source-state" id="dataSourceState"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">合规策略诊断</p>
+                  <h2>免责声明与建议边界</h2>
+                </div>
+              </div>
+              <div class="data-source-state" id="complianceServiceState"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">数据存储诊断</p>
+                  <h2>仓储模式与持久化边界</h2>
+                </div>
+              </div>
+              <div class="data-source-state" id="repositoryState"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">数据库诊断</p>
+                  <h2>生产数据库准备度</h2>
+                </div>
+              </div>
+              <div class="data-source-state" id="databaseState"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">审计诊断</p>
+                  <h2>日志保留与脱敏边界</h2>
+                </div>
+              </div>
+              <div class="data-source-state" id="auditServiceState"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">后台任务诊断</p>
+                  <h2>定时提醒与任务运行器</h2>
+                </div>
+              </div>
+              <div class="data-source-state" id="jobRunnerState"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">调度诊断</p>
+                  <h2>任务计划与队列边界</h2>
+                </div>
+              </div>
+              <div class="data-source-state" id="schedulerState"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">通知投递诊断</p>
+                  <h2>渠道能力与后端投递状态</h2>
+                </div>
+              </div>
+              <div class="data-source-state compact-service-state" id="notificationServiceState"></div>
+            </article>
+          </details>
         </section>
 
         <footer class="disclaimer">
@@ -406,6 +415,6 @@
       <button class="primary-button" id="closeTermDialog" type="button">知道了</button>
     </dialog>
 
-    <script src="./app.js?v=145"></script>
+    <script src="./app.js?v=146"></script>
   </body>
 </html>
