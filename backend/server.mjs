@@ -93,7 +93,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、478 条自动化回归目标",
+    "后端 API、生产门禁规划、479 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -2645,6 +2645,16 @@ function buildRealDataReferenceAnalysis({
     30,
     70,
   );
+  const quoteHistoryTechnicalSummary = hasRealHistory
+    ? `真实走势区间涨跌约 ${trendPct.toFixed(2)}%，用于估算技术强弱。`
+    : hasRealQuote
+      ? "真实报价：已获得；历史走势：缺失；技术分析：低置信。"
+      : "真实报价：缺失；历史走势：缺失；技术分析：低置信。";
+  const quoteHistoryReason = hasRealHistory
+    ? `真实走势区间涨跌约 ${trendPct.toFixed(2)}%，技术面分数 ${technicalScore}/100。`
+    : hasRealQuote
+      ? `真实报价：已获得 ${currentPrice}；历史走势：缺失；技术分析：低置信。`
+      : "真实报价：缺失；历史走势：缺失；技术分析：低置信。";
   const portfolioAdjustment = portfolioEntry?.maxLoss ? -1 : 0;
   const upsideProbability = clampReferenceScore(
     50 +
@@ -2706,9 +2716,7 @@ function buildRealDataReferenceAnalysis({
       label: "技术分析",
       score: technicalScore,
       weight: 14,
-      summary: hasRealHistory
-        ? `真实走势区间涨跌约 ${trendPct.toFixed(2)}%，用于估算技术强弱。`
-        : "只有真实报价、缺少真实历史走势，技术面置信度较低。",
+      summary: quoteHistoryTechnicalSummary,
     },
     {
       key: "sentiment",
@@ -2759,11 +2767,7 @@ function buildRealDataReferenceAnalysis({
           ? "真实数据规则参考：偏谨慎，优先控制仓位和回撤风险。"
           : "真实数据规则参考：保持观察，等待更多真实数据确认方向。",
     reasons: [
-      hasRealHistory
-        ? `真实走势区间涨跌约 ${trendPct.toFixed(2)}%，技术面分数 ${technicalScore}/100。`
-        : hasRealQuote
-          ? `已获得真实报价 ${currentPrice}，但历史走势不足，技术面置信度较低。`
-          : "暂未获得真实行情，概率置信度受限。",
+      quoteHistoryReason,
       hasRealMacro ? `宏观分数 ${macroScore}/100：${macroContext.summary}` : "宏观真实数据暂缺，按中性处理。",
       informationFlowImpact.summary,
     ],

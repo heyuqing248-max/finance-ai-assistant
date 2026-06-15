@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v136";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v137";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、478 条自动化回归目标",
+    "后端 API、生产门禁规划、479 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -9421,6 +9421,9 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
         : aiProviderAdapter?.configured
           ? "待启用模型"
           : "待配置模型";
+  const quoteStatusValue = quoteReady ? "已获得" : quotaLimited ? "额度限制" : "待真实数据";
+  const historyStatusValue = historyReady ? "已连接" : quoteReady ? "缺失" : quotaLimited ? "额度限制" : "待真实数据";
+  const technicalStatusValue = historyReady ? "已连接" : quoteReady ? "低置信" : "待真实数据";
   const hasAnyRealCoverage = quoteReady || newsReady || filingsReady || macroReady || analysisReady;
   const identifyLabel =
     hasAnyRealCoverage
@@ -9432,6 +9435,9 @@ function renderStockCoverageNote(stock = state.selectedStock, analysisState = nu
   const items = [
     { label: "股票", value: identifyLabel, tone: identifyTone },
     { label: "行情", value: quoteReady ? (historyReady ? "已连接" : "已连接 / 缺历史走势") : quotaLimited ? "额度限制" : "待真实数据", tone: quoteReady ? "ready" : "limited" },
+    { label: "真实报价", value: quoteStatusValue, tone: quoteReady ? "ready" : "limited" },
+    { label: "历史走势", value: historyStatusValue, tone: historyReady ? "ready" : "limited" },
+    { label: "技术分析", value: technicalStatusValue, tone: historyReady ? "ready" : "limited" },
     { label: "新闻", value: newsReady ? "已连接" : newsCoverage.issueLabel || (quotaLimited ? "额度限制" : "待真实数据"), tone: newsReady ? "ready" : "limited" },
     { label: "公告", value: filingsReady ? "已连接" : "待真实数据", tone: filingsReady ? "ready" : "limited" },
     { label: "宏观", value: macroReady ? "已连接" : "待真实数据", tone: macroReady ? "ready" : "limited" },
