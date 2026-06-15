@@ -8,7 +8,6 @@ const DEFAULT_TIMEOUT_MS = 15 * 1000;
 
 export const defaultPublicPreviewChecks = [
   { id: "home", label: "首页", path: "/" },
-  { id: "health", label: "/health", path: "/health" },
   { id: "api-health", label: "/api/health", path: "/api/health" },
   {
     id: "analysis-msft",
@@ -16,9 +15,14 @@ export const defaultPublicPreviewChecks = [
     path: "/api/analysis?symbol=MSFT&riskProfile=balanced",
   },
   {
-    id: "stock-search-msft",
-    label: "股票搜索 MSFT",
-    path: "/api/stocks/search?q=Microsoft",
+    id: "stock-search-tencent",
+    label: "股票搜索 腾讯控股",
+    path: "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+  },
+  {
+    id: "ai-services",
+    label: "/api/ai-services",
+    path: "/api/ai-services",
   },
 ];
 

@@ -116,10 +116,10 @@ test("public preview access status reports current temporary URL and fallback pl
       healthIntervalMs: 15000,
       healthRequiredEndpoints: [
         "/",
-        "/health",
         "/api/health",
         "/api/analysis?symbol=MSFT&riskProfile=balanced",
-        "/api/stocks/search?q=Microsoft",
+        "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+        "/api/ai-services",
       ],
       healthIterationCount: 8,
       healthStartedAt: "2026-06-14T02:00:00.000Z",
@@ -182,8 +182,8 @@ test("public preview access status reports current temporary URL and fallback pl
     assert.match(response.body.publicPreviewAccess.stabilityGate.userMessage, /临时测试入口/);
     assert.deepEqual(response.body.publicPreviewAccess.healthGate.requiredEndpoints.slice(0, 3), [
       "/",
-      "/health",
       "/api/health",
+      "/api/analysis?symbol=MSFT&riskProfile=balanced",
     ]);
   } finally {
     if (previousStatusFile === undefined) {
@@ -240,6 +240,82 @@ test("public preview access status treats current public origin as reachable bef
   }
 });
 
+test("public preview access status accepts published fixed Render health gate JSON", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "finance-ai-fixed-render-health-"));
+  const stableHealthFile = join(dir, "render-health.json");
+  await writeFile(
+    stableHealthFile,
+    JSON.stringify({
+      service: "finance-ai-assistant-web",
+      url: "https://finance-ai-assistant-web.onrender.com",
+      publicUrl: "https://finance-ai-assistant-web.onrender.com",
+      ok: true,
+      status: "healthy",
+      updatedAt: new Date().toISOString(),
+      healthStartedAt: "2026-06-15T09:00:00.000Z",
+      healthEndedAt: "2026-06-15T09:03:00.000Z",
+      healthWindowMs: 180000,
+      healthIntervalMs: 15000,
+      healthTimeoutMs: 30000,
+      healthRequiredEndpoints: [
+        "/",
+        "/api/health",
+        "/api/analysis?symbol=MSFT&riskProfile=balanced",
+        "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+        "/api/ai-services",
+      ],
+      healthIterationCount: 12,
+      transientFailureCount: 0,
+      lastFailure: null,
+    }),
+  );
+  const previousStableUrl = process.env.FINANCE_AI_STABLE_PUBLIC_URL;
+  const previousStableFile = process.env.FINANCE_AI_STABLE_HEALTH_STATUS_FILE;
+  const previousStablePassed = process.env.FINANCE_AI_STABLE_HEALTH_GATE_PASSED;
+  process.env.FINANCE_AI_STABLE_PUBLIC_URL = "https://finance-ai-assistant-web.onrender.com";
+  process.env.FINANCE_AI_STABLE_HEALTH_STATUS_FILE = stableHealthFile;
+  delete process.env.FINANCE_AI_STABLE_HEALTH_GATE_PASSED;
+  try {
+    const response = await requestMock("/api/public-preview/access-status", {
+      headers: { host: "finance-ai-assistant-web.onrender.com", "x-forwarded-proto": "https" },
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.body.publicPreviewAccess.stableHosting.configured, true);
+    assert.equal(response.body.publicPreviewAccess.stableHosting.healthGatePassed, true);
+    assert.equal(response.body.publicPreviewAccess.stabilityGate.externalUseReady, true);
+    assert.equal(response.body.publicPreviewAccess.stabilityGate.fixedContinuousHealthPassed, true);
+    assert.equal(response.body.publicPreviewAccess.healthGate.requiredEndpointCoverage, true);
+    assert.equal(response.body.publicPreviewAccess.healthGate.lastWindowSeconds, 180);
+    assert.equal(response.body.publicPreviewAccess.healthGate.lastIterationCount, 12);
+    assert.deepEqual(response.body.publicPreviewAccess.healthGate.requiredEndpoints, [
+      "/",
+      "/api/health",
+      "/api/analysis?symbol=MSFT&riskProfile=balanced",
+      "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+      "/api/ai-services",
+    ]);
+    assert.match(response.body.publicPreviewAccess.stabilityGate.userMessage, /固定线上入口已通过/);
+    assert.doesNotMatch(response.body.publicPreviewAccess.stabilityGate.blockers.join(" "), /固定网址尚未通过/);
+  } finally {
+    if (previousStableUrl === undefined) {
+      delete process.env.FINANCE_AI_STABLE_PUBLIC_URL;
+    } else {
+      process.env.FINANCE_AI_STABLE_PUBLIC_URL = previousStableUrl;
+    }
+    if (previousStableFile === undefined) {
+      delete process.env.FINANCE_AI_STABLE_HEALTH_STATUS_FILE;
+    } else {
+      process.env.FINANCE_AI_STABLE_HEALTH_STATUS_FILE = previousStableFile;
+    }
+    if (previousStablePassed === undefined) {
+      delete process.env.FINANCE_AI_STABLE_HEALTH_GATE_PASSED;
+    } else {
+      process.env.FINANCE_AI_STABLE_HEALTH_GATE_PASSED = previousStablePassed;
+    }
+  }
+});
+
 test("public preview access status exposes active watchdog health gate checking state", async () => {
   const dir = await mkdtemp(join(tmpdir(), "finance-ai-public-preview-"));
   const statusFile = join(dir, "status.json");
@@ -256,10 +332,10 @@ test("public preview access status exposes active watchdog health gate checking 
       healthTimeoutMs: 15000,
       healthRequiredEndpoints: [
         "/",
-        "/health",
         "/api/health",
         "/api/analysis?symbol=MSFT&riskProfile=balanced",
-        "/api/stocks/search?q=Microsoft",
+        "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+        "/api/ai-services",
       ],
       localFallbackOk: null,
       guidance: "正在进行公网入口连续健康检查。",

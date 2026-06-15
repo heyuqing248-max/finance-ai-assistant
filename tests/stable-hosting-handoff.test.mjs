@@ -98,10 +98,10 @@ test("stable hosting handoff exposes standby links and temporary health evidence
       healthEndedAt: "2026-06-14T08:43:52.503Z",
       healthRequiredEndpoints: [
         "/",
-        "/health",
         "/api/health",
         "/api/analysis?symbol=MSFT&riskProfile=balanced",
-        "/api/stocks/search?q=Microsoft",
+        "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+        "/api/ai-services",
       ],
       standbyPublicUrls: [
         {
@@ -137,7 +137,7 @@ test("stable hosting handoff exposes standby links and temporary health evidence
   assert.match(html, /https:\/\/standby-b\.lhr\.life/);
   assert.match(html, /临时入口健康证据 \/ Temporary Health Evidence/);
   assert.match(html, /passed/);
-  assert.match(html, /\/api\/stocks\/search\?q=Microsoft/);
+  assert.match(html, /\/api\/stocks\/search\?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1/);
   assert.doesNotMatch(html, /sk-proj|sk-or-v1|gsk_|AQ\./);
 });
 

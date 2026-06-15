@@ -9,8 +9,10 @@ test("Render warmup workflow schedules health checks without committing to main"
   assert.match(workflow, /cron: "\*\/10 \* \* \* \*"/);
   assert.match(workflow, /RENDER_URL: https:\/\/finance-ai-assistant-web\.onrender\.com/);
   assert.match(workflow, /STATUS_BRANCH: render-health-status/);
-  assert.match(workflow, /\/health/);
-  assert.match(workflow, /\/api\/health/);
+  assert.match(workflow, /render-health-status-check\.mjs/);
+  assert.match(workflow, /continue-on-error: true/);
+  assert.match(workflow, /RENDER_HEALTH_DURATION_MS: "180000"/);
+  assert.match(workflow, /render-health\.json/);
   assert.match(workflow, /git push origin "HEAD:\$STATUS_BRANCH"/);
   assert.doesNotMatch(workflow, /git push origin (HEAD:)?main/);
 });

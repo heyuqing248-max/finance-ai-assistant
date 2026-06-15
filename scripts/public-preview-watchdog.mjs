@@ -582,10 +582,10 @@ export async function runPublicPreviewWatchdog(options = {}) {
             healthTimeoutMs,
             healthRequiredEndpoints: previousHealthyResult?.checkedEndpoints || [
               "/",
-              "/health",
               "/api/health",
               "/api/analysis?symbol=MSFT&riskProfile=balanced",
-              "/api/stocks/search?q=Microsoft",
+              "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+              "/api/ai-services",
             ],
             healthIterationCount: previousHealthyResult?.iterationCount || 0,
             healthStartedAt: previousHealthyResult?.startedAt || nowIso(now),

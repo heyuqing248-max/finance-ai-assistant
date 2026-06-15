@@ -153,10 +153,12 @@ test("public preview watchdog restarts tunnel after public health failure", asyn
   const checkingStatus = statusWrites.find((write) => write.content.status === "checking");
   assert.ok(checkingStatus);
   assert.equal(checkingStatus.content.publicUrl, "https://first.lhr.life");
-  assert.deepEqual(checkingStatus.content.healthRequiredEndpoints.slice(0, 3), [
+  assert.deepEqual(checkingStatus.content.healthRequiredEndpoints, [
     "/",
-    "/health",
     "/api/health",
+    "/api/analysis?symbol=MSFT&riskProfile=balanced",
+    "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+    "/api/ai-services",
   ]);
   assert.match(checkingStatus.content.guidance, /连续健康检查/);
 });
@@ -384,7 +386,13 @@ test("public preview watchdog preserves completed healthy evidence during the ne
       return {
         ok: true,
         publicUrl: "https://evidence.lhr.life",
-        checkedEndpoints: ["/", "/health", "/api/health"],
+        checkedEndpoints: [
+          "/",
+          "/api/health",
+          "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "/api/ai-services",
+        ],
         iterationCount: 8,
         startedAt: "2026-06-14T10:00:00.000Z",
         endedAt: "2026-06-14T10:03:00.000Z",

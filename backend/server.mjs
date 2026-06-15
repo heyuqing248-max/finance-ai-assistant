@@ -93,7 +93,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、485 条自动化回归目标",
+    "后端 API、生产门禁规划、486 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -1689,16 +1689,164 @@ function readPublicPreviewRuntimeStatus(env = process.env, now = Date.now) {
   }
 }
 
-function publicPreviewAccessStatus(request, env = process.env) {
+const stableHealthRequiredEndpoints = [
+  "/",
+  "/api/health",
+  "/api/analysis?symbol=MSFT&riskProfile=balanced",
+  "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+  "/api/ai-services",
+];
+
+function normalizeStableHealthStatusPayload(payload = {}, env = process.env, now = Date.now) {
+  const staleAfterMs = Number(env.FINANCE_AI_STABLE_HEALTH_STATUS_STALE_AFTER_MS) || 30 * 60 * 1000;
+  const updatedAt = payload.updatedAt || payload.endedAt || "";
+  const updatedAtMs = Date.parse(updatedAt);
+  const ageMs = Number.isFinite(updatedAtMs) ? Math.max(0, now() - updatedAtMs) : Infinity;
+  const stale = !Number.isFinite(ageMs) || ageMs > staleAfterMs;
+  const requiredEndpoints = Array.isArray(payload.healthRequiredEndpoints)
+    ? payload.healthRequiredEndpoints.filter((item) => typeof item === "string")
+    : Array.isArray(payload.checkedEndpoints)
+      ? payload.checkedEndpoints.filter((item) => typeof item === "string")
+      : [];
+  const requiredEndpointCoverage = stableHealthRequiredEndpoints.every((path) =>
+    requiredEndpoints.includes(path),
+  );
+  const healthWindowSeconds = Number(payload.healthWindowMs)
+    ? Math.round(Number(payload.healthWindowMs) / 1000)
+    : Number(payload.stabilityGate?.monitorWindowSeconds) || 0;
+  const healthIterationCount =
+    Number(payload.healthIterationCount) || Number(payload.stabilityGate?.monitorIterationCount) || 0;
+  const passed =
+    payload.ok === true &&
+    !stale &&
+    healthWindowSeconds >= 180 &&
+    healthIterationCount > 0 &&
+    requiredEndpointCoverage &&
+    !payload.lastFailure;
+  return {
+    configured: true,
+    ok: payload.ok === true,
+    passed,
+    status: typeof payload.status === "string" ? payload.status : payload.ok ? "healthy" : "unknown",
+    publicUrl: typeof payload.publicUrl === "string" ? payload.publicUrl : typeof payload.url === "string" ? payload.url : "",
+    updatedAt,
+    stale,
+    ageSeconds: Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null,
+    healthWindowSeconds,
+    healthIntervalSeconds: Number(payload.healthIntervalMs) ? Math.round(Number(payload.healthIntervalMs) / 1000) : 0,
+    healthTimeoutSeconds: Number(payload.healthTimeoutMs) ? Math.round(Number(payload.healthTimeoutMs) / 1000) : 0,
+    healthIterationCount,
+    healthStartedAt: typeof payload.healthStartedAt === "string" ? payload.healthStartedAt : payload.startedAt || "",
+    healthEndedAt: typeof payload.healthEndedAt === "string" ? payload.healthEndedAt : payload.endedAt || "",
+    healthRequiredEndpoints: requiredEndpoints,
+    requiredEndpointCoverage,
+    transientFailureCount: Number(payload.transientFailureCount) || 0,
+    lastFailure: payload.lastFailure || null,
+    source: typeof payload.source === "string" ? payload.source : "render-health-status",
+    guidance: typeof payload.guidance === "string" ? payload.guidance : "",
+  };
+}
+
+async function readStableHealthStatus(env = process.env, fetchImpl = globalThis.fetch, now = Date.now) {
+  const statusFile = env.FINANCE_AI_STABLE_HEALTH_STATUS_FILE || "";
+  const statusUrl = env.FINANCE_AI_STABLE_HEALTH_STATUS_URL || "";
+  try {
+    if (statusFile) {
+      return normalizeStableHealthStatusPayload(JSON.parse(readFileSync(statusFile, "utf8")), env, now);
+    }
+    if (statusUrl && typeof fetchImpl === "function") {
+      const response = await fetchImpl(statusUrl, { cache: "no-store" });
+      if (!response || response.status !== 200) {
+        return {
+          configured: true,
+          ok: false,
+          passed: false,
+          status: "fetch-failed",
+          publicUrl: "",
+          updatedAt: "",
+          stale: true,
+          ageSeconds: null,
+          healthWindowSeconds: 0,
+          healthIntervalSeconds: 0,
+          healthTimeoutSeconds: 0,
+          healthIterationCount: 0,
+          healthStartedAt: "",
+          healthEndedAt: "",
+          healthRequiredEndpoints: [],
+          requiredEndpointCoverage: false,
+          transientFailureCount: 0,
+          lastFailure: { failureType: "stable-health-status-fetch-failed", status: response?.status || 0 },
+          source: "render-health-status",
+          guidance: "固定门禁状态 JSON 暂时不可读取。",
+        };
+      }
+      return normalizeStableHealthStatusPayload(await response.json(), env, now);
+    }
+  } catch (error) {
+    return {
+      configured: Boolean(statusFile || statusUrl),
+      ok: false,
+      passed: false,
+      status: "read-error",
+      publicUrl: "",
+      updatedAt: "",
+      stale: true,
+      ageSeconds: null,
+      healthWindowSeconds: 0,
+      healthIntervalSeconds: 0,
+      healthTimeoutSeconds: 0,
+      healthIterationCount: 0,
+      healthStartedAt: "",
+      healthEndedAt: "",
+      healthRequiredEndpoints: [],
+      requiredEndpointCoverage: false,
+      transientFailureCount: 0,
+      lastFailure: { failureType: "stable-health-status-read-error", message: error?.message || String(error) },
+      source: "render-health-status",
+      guidance: "固定门禁状态 JSON 读取失败。",
+    };
+  }
+  return {
+    configured: false,
+    ok: false,
+    passed: false,
+    status: "not-configured",
+    publicUrl: "",
+    updatedAt: "",
+    stale: true,
+    ageSeconds: null,
+    healthWindowSeconds: 0,
+    healthIntervalSeconds: 0,
+    healthTimeoutSeconds: 0,
+    healthIterationCount: 0,
+    healthStartedAt: "",
+    healthEndedAt: "",
+    healthRequiredEndpoints: [],
+    requiredEndpointCoverage: false,
+    transientFailureCount: 0,
+    lastFailure: null,
+    source: "none",
+    guidance: "尚未配置固定门禁状态 JSON。",
+  };
+}
+
+async function publicPreviewAccessStatus(request, env = process.env) {
   const status = readPublicPreviewRuntimeStatus(env);
+  const stableHealthStatus = await readStableHealthStatus(env);
   const host = String(headerValue(request.headers, "host") || "");
   const forwardedProto = String(headerValue(request.headers, "x-forwarded-proto") || "");
   const proto = forwardedProto || (host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https");
   const currentOrigin = host ? `${proto}://${host}` : "";
-  const fixedHostingUrl = env.FINANCE_AI_STABLE_PUBLIC_URL || env.FINANCE_AI_FIXED_PUBLIC_URL || "";
+  const fixedHostingUrl =
+    env.FINANCE_AI_STABLE_PUBLIC_URL ||
+    env.FINANCE_AI_FIXED_PUBLIC_URL ||
+    stableHealthStatus.publicUrl ||
+    "";
   const fixedHealthGatePassedAt = env.FINANCE_AI_STABLE_HEALTH_GATE_PASSED_AT || "";
   const fixedHealthGatePassed =
-    env.FINANCE_AI_STABLE_HEALTH_GATE_PASSED === "true" || Boolean(fixedHealthGatePassedAt);
+    env.FINANCE_AI_STABLE_HEALTH_GATE_PASSED === "true" ||
+    Boolean(fixedHealthGatePassedAt) ||
+    stableHealthStatus.passed;
   const currentHostname = safeParseUrlHostname(currentOrigin);
   const statusHostname = safeParseUrlHostname(status.publicUrl);
   const isTemporaryTunnel = [currentHostname, statusHostname].some((hostname) => /\.lhr\.life$/i.test(hostname));
@@ -1711,16 +1859,16 @@ function publicPreviewAccessStatus(request, env = process.env) {
   const publicReachable = status.ok || currentPublicOrigin;
   const publicAccessUrl = status.publicUrl || (currentPublicOrigin ? currentOrigin : "");
   const healthRequiredEndpoints = Array.isArray(status.healthRequiredEndpoints) ? status.healthRequiredEndpoints : [];
-  const requiredEndpoints = [
-    "/",
-    "/health",
-    "/api/health",
-    "/api/analysis?symbol=MSFT&riskProfile=balanced",
-    "/api/stocks/search?q=Microsoft",
-  ];
-  const requiredEndpointCoverage = requiredEndpoints.every((path) => healthRequiredEndpoints.includes(path));
-  const monitorWindowSeconds = Number(status.healthWindowSeconds || 0);
-  const monitorIterationCount = Number(status.healthIterationCount || 0);
+  const requiredEndpoints = stableHealthRequiredEndpoints;
+  const temporaryRequiredEndpointCoverage = requiredEndpoints.every((path) => healthRequiredEndpoints.includes(path));
+  const requiredEndpointCoverage =
+    stableHealthStatus.requiredEndpointCoverage || temporaryRequiredEndpointCoverage;
+  const monitorWindowSeconds = stableHealthStatus.passed
+    ? stableHealthStatus.healthWindowSeconds
+    : Number(status.healthWindowSeconds || 0);
+  const monitorIterationCount = stableHealthStatus.passed
+    ? stableHealthStatus.healthIterationCount
+    : Number(status.healthIterationCount || 0);
   const standbyReadyCount = status.standbyPublicUrls.filter((entry) => entry.status === "healthy").length;
   const standbyConfiguredCount = status.standbyPublicUrls.filter((entry) => entry.url).length;
   const standbyRequirementPassed = standbyReadyCount >= 1;
@@ -1728,7 +1876,7 @@ function publicPreviewAccessStatus(request, env = process.env) {
     status.ok &&
     monitorWindowSeconds >= 180 &&
     monitorIterationCount > 0 &&
-    requiredEndpointCoverage &&
+    temporaryRequiredEndpointCoverage &&
     !status.lastFailure;
   const temporaryAccessContinuouslyReady = publicReachable && continuousHealthPassed && standbyRequirementPassed;
   const stableHostingConfigured = Boolean(fixedHostingUrl);
@@ -1759,7 +1907,7 @@ function publicPreviewAccessStatus(request, env = process.env) {
       scope: "外部稳定测试",
       warning: stableExternalReady ? "" : "尚未完成固定托管和连续健康门禁。",
       nextStep: stableExternalReady
-        ? "可作为外部稳定测试入口，仍需定期复测。"
+        ? "固定网址已通过 GitHub Actions 连续健康门禁，仍需定期复测。"
         : "创建 Render/Vercel/Netlify 固定服务并运行 2-3 分钟连续验收。",
     },
     {
@@ -1843,11 +1991,13 @@ function publicPreviewAccessStatus(request, env = process.env) {
       status: fixedHostingUrl ? "configured" : "not-configured",
       nextStep: fixedHostingUrl
         ? fixedHealthGatePassed
-          ? "固定网址已标记通过连续健康检查；仍需定期复测。"
+          ? "固定网址已通过连续健康检查；仍需定期复测。"
           : "正式演示前对固定网址运行 2-3 分钟连续健康检查。"
         : "仍需部署 Render/Vercel/Netlify 或同类固定线上测试环境。",
       healthGatePassed: fixedHealthGatePassed,
-      healthGatePassedAt: fixedHealthGatePassedAt,
+      healthGatePassedAt: fixedHealthGatePassedAt || stableHealthStatus.healthEndedAt,
+      healthStatusSource: stableHealthStatus.source,
+      healthStatusUpdatedAt: stableHealthStatus.updatedAt,
       releaseReady: stableExternalReady,
     },
     localFallback: {
@@ -1860,9 +2010,9 @@ function publicPreviewAccessStatus(request, env = process.env) {
       intervalSeconds: 15,
       lastWindowSeconds: monitorWindowSeconds,
       lastIterationCount: monitorIterationCount,
-      lastStartedAt: status.healthStartedAt,
-      lastEndedAt: status.healthEndedAt,
-      lastFailureType: status.lastFailure?.failureType || "",
+      lastStartedAt: stableHealthStatus.passed ? stableHealthStatus.healthStartedAt : status.healthStartedAt,
+      lastEndedAt: stableHealthStatus.passed ? stableHealthStatus.healthEndedAt : status.healthEndedAt,
+      lastFailureType: stableHealthStatus.lastFailure?.failureType || status.lastFailure?.failureType || "",
       requiredEndpointCoverage,
       requiredEndpoints,
       standbyReadyCount,
@@ -1880,15 +2030,16 @@ function publicPreviewAccessStatus(request, env = process.env) {
       stableHostedUrl: Boolean(fixedHostingUrl),
       temporaryTunnel: isTemporaryTunnel,
       continuousHealthPassed,
+      fixedContinuousHealthPassed: fixedHealthGatePassed,
       requiredDurationSeconds: 180,
       monitorWindowSeconds,
       monitorIterationCount,
       requiredEndpointCoverage,
-      lastFailureType: status.lastFailure?.failureType || "",
+      lastFailureType: stableHealthStatus.lastFailure?.failureType || status.lastFailure?.failureType || "",
       blockers: [
         ...(isTemporaryTunnel ? ["当前入口仍是临时 lhr.life 隧道，可能轮换或返回 503。"] : []),
         ...(fixedHostingUrl ? [] : ["尚未配置固定线上测试环境。"]),
-        ...(continuousHealthPassed ? [] : ["临时公网入口尚未完成覆盖关键端点的 2-3 分钟连续健康检查。"]),
+        ...(temporaryAccessContinuouslyReady ? [] : ["临时公网入口尚未完成覆盖关键端点的 2-3 分钟连续健康检查。"]),
         ...(standbyRequirementPassed ? [] : ["备用临时入口尚未确认至少 1 个健康链接。"]),
         ...(status.lastFailure?.failureType ? [`最近公网失败类型：${status.lastFailure.failureType}。`] : []),
         ...(fixedHealthGatePassed ? [] : ["固定网址尚未通过 2-3 分钟连续健康检查。"]),
@@ -3045,7 +3196,7 @@ export async function handleMockRequest(request, state = createMockState()) {
     return {
       status: 200,
       body: {
-        publicPreviewAccess: publicPreviewAccessStatus(request),
+        publicPreviewAccess: await publicPreviewAccessStatus(request),
       },
     };
   }

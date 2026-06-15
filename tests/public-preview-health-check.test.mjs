@@ -32,12 +32,16 @@ test("public preview health check requires all public endpoints to stay 200", as
   assert.equal(result.ok, true);
   assert.equal(result.iterationCount, 3);
   assert.ok(requestedUrls.includes("https://demo.example/"));
-  assert.ok(requestedUrls.includes("https://demo.example/health"));
   assert.ok(requestedUrls.includes("https://demo.example/api/health"));
   assert.ok(
     requestedUrls.includes("https://demo.example/api/analysis?symbol=MSFT&riskProfile=balanced"),
   );
-  assert.ok(requestedUrls.includes("https://demo.example/api/stocks/search?q=Microsoft"));
+  assert.ok(
+    requestedUrls.includes(
+      "https://demo.example/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+    ),
+  );
+  assert.ok(requestedUrls.includes("https://demo.example/api/ai-services"));
 });
 
 test("public preview health check reports tunnel failure and local fallback", async () => {

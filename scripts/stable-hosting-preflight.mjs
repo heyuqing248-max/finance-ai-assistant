@@ -28,6 +28,9 @@ export const requiredDashboardSecretKeys = [
 
 export const requiredRuntimeEnvVars = {
   FINANCE_AI_PUBLIC_HOST: "0.0.0.0",
+  FINANCE_AI_STABLE_PUBLIC_URL: "https://finance-ai-assistant-web.onrender.com",
+  FINANCE_AI_STABLE_HEALTH_STATUS_URL:
+    "https://raw.githubusercontent.com/heyuqing248-max/finance-ai-assistant/render-health-status/render-health.json",
   FINANCE_AI_MARKET_DATA_PROVIDER: "multi-free",
   FINANCE_AI_NEWS_PROVIDER: "multi-free-news",
   FINANCE_AI_FILINGS_PROVIDER: "multi-free-filings",

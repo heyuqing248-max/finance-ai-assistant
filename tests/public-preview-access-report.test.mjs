@@ -27,10 +27,10 @@ test("public preview access report recommends public URL when all key endpoints 
         healthIntervalMs: 15000,
         healthRequiredEndpoints: [
           "/",
-          "/health",
           "/api/health",
           "/api/analysis?symbol=MSFT&riskProfile=balanced",
-          "/api/stocks/search?q=Microsoft",
+          "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "/api/ai-services",
         ],
         healthIterationCount: 12,
         standbyPublicUrls: [

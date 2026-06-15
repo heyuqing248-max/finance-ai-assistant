@@ -26,7 +26,8 @@ test("stable hosting preflight accepts the Render blueprint and required health 
   assert.equal(result.healthCheckPath, "/health");
   assert.deepEqual(result.requiredEndpoints, requiredStableHostingEndpoints);
   assert.ok(result.requiredEndpoints.includes("/api/analysis?symbol=MSFT&riskProfile=balanced"));
-  assert.ok(result.requiredEndpoints.includes("/api/stocks/search?q=Microsoft"));
+  assert.ok(result.requiredEndpoints.includes("/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1"));
+  assert.ok(result.requiredEndpoints.includes("/api/ai-services"));
 
   const failedChecks = result.checks.filter((check) => !check.ok);
   assert.deepEqual(failedChecks, []);

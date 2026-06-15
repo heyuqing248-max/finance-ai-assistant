@@ -14,6 +14,8 @@ services:
         value: 0.0.0.0
       - key: FINANCE_AI_STABLE_PUBLIC_URL
         value: https://finance-ai-assistant-web.onrender.com
+      - key: FINANCE_AI_STABLE_HEALTH_STATUS_URL
+        value: https://raw.githubusercontent.com/heyuqing248-max/finance-ai-assistant/render-health-status/render-health.json
       - key: FINANCE_AI_MARKET_DATA_PROVIDER
         value: multi-free
       - key: FINANCE_AI_MARKET_DATA_ALLOW_NETWORK
