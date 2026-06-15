@@ -2892,7 +2892,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /470 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /471 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2908,7 +2908,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /470 条自动化回归/);
+  assert.match(progressHtml, /471 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -2923,7 +2923,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /470 条自动化回归/);
+  assert.match(progressHtml, /471 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -2938,7 +2938,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /470 条自动化回归/);
+  assert.match(progressHtml, /471 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -3974,10 +3974,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v128",
+    "finance-ai-assistant-v129",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v128/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v129/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -3994,7 +3994,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v128",
+    "finance-ai-assistant-v129",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -16277,6 +16277,55 @@ test("analysis quote source keeps market coverage connected when quote endpoint 
   assert.match(app.byId.get("stockCoverageNote").innerHTML, /行情[\s\S]*已连接 \/ 缺历史走势/);
   assert.match(app.byId.get("stockCoverageNote").innerHTML, /规则参考[\s\S]*已生成/);
   assert.match(app.byId.get("stockCoverageNote").innerHTML, /完整 AI[\s\S]*未生成/);
+});
+
+test("backend analysis request waits 45 seconds before frontend timeout fallback", async () => {
+  const timeoutDelays = [];
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "a",
+      selectedStockCode: "600519",
+    },
+    {
+      setTimeoutImpl: (_handler, delay) => {
+        timeoutDelays.push(delay);
+        return timeoutDelays.length;
+      },
+      fetchImpl: async (url) => {
+        if (url.includes("/api/analysis?")) {
+          return {
+            ok: true,
+            json: async () => ({
+              symbol: "600519",
+              analysisMode: "real-data-rule-reference",
+              analysisService: { mode: "real-data-rule-reference", id: "real-data-rule-reference" },
+              upsideProbability: 54,
+              downsideProbability: 46,
+              confidenceScore: 65,
+              actionReference: "真实数据规则参考：保持观察。",
+              inputCoverage: {
+                marketData: "backend-real-provider-quote",
+                news: "backend-real-provider-news",
+                filings: "backend-real-provider-filings",
+                macro: "backend-real-provider-macro",
+                model: "real-data-rule-reference",
+              },
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ status: "empty", mode: "empty-no-fixture", items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadAnalysis();
+
+  assert.ok(timeoutDelays.length >= 1);
+  assert.deepEqual([...new Set(timeoutDelays)], [45000]);
+  assert.equal(app.byId.get("upsideValue").textContent, "54%");
+  assert.equal(app.byId.get("downsideValue").textContent, "46%");
 });
 
 test("backend analysis ignores sample history and sample scenarios in strict real-data mode", async () => {
