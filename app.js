@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v132";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v133";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、474 条自动化回归目标",
+    "后端 API、生产门禁规划、475 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -14925,10 +14925,37 @@ function getWatchlistAnalysisMeta(stock) {
       aiLabel: "AI 已生成",
     };
   }
+  const visibleMeta = getVisibleCurrentStockAnalysisMeta(stock);
+  if (visibleMeta) return visibleMeta;
   return {
     probabilityLabel: "规则参考 待模型",
     aiLabel: "完整 AI 待模型",
   };
+}
+
+function getVisibleCurrentStockAnalysisMeta(stock) {
+  if (!stock || state.selectedStock?.code !== stock.code) return null;
+  const upsideText = String(elements.upsideValue?.textContent || "").trim();
+  const match = upsideText.match(/^(\d{1,3})%$/);
+  if (!match) return null;
+  const analysisText = [
+    elements.analysisState?.textContent || "",
+    elements.stockCoverageNote?.textContent || "",
+    elements.impactBadge?.textContent || "",
+  ].join(" ");
+  if (/完整 AI\s*已生成|完整 AI 分析已生成/.test(analysisText)) {
+    return {
+      probabilityLabel: `AI 参考 ${match[1]}%`,
+      aiLabel: "AI 已生成",
+    };
+  }
+  if (/规则参考\s*已生成|真实数据规则参考|规则参考/.test(analysisText)) {
+    return {
+      probabilityLabel: `规则参考 ${match[1]}%`,
+      aiLabel: "完整 AI 待模型",
+    };
+  }
+  return null;
 }
 
 function getWatchlistState() {
