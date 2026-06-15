@@ -93,7 +93,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、486 条自动化回归目标",
+    "后端 API、生产门禁规划、487 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -1740,6 +1740,10 @@ function normalizeStableHealthStatusPayload(payload = {}, env = process.env, now
     healthEndedAt: typeof payload.healthEndedAt === "string" ? payload.healthEndedAt : payload.endedAt || "",
     healthRequiredEndpoints: requiredEndpoints,
     requiredEndpointCoverage,
+    healthSuccessCount: Number(payload.healthSuccessCount) || 0,
+    healthFailureCount: Number(payload.healthFailureCount) || 0,
+    endpointSuccessCount: Number(payload.endpointSuccessCount) || 0,
+    endpointFailureCount: Number(payload.endpointFailureCount) || 0,
     transientFailureCount: Number(payload.transientFailureCount) || 0,
     lastFailure: payload.lastFailure || null,
     source: typeof payload.source === "string" ? payload.source : "render-health-status",
@@ -1774,6 +1778,10 @@ async function readStableHealthStatus(env = process.env, fetchImpl = globalThis.
           healthEndedAt: "",
           healthRequiredEndpoints: [],
           requiredEndpointCoverage: false,
+          healthSuccessCount: 0,
+          healthFailureCount: 0,
+          endpointSuccessCount: 0,
+          endpointFailureCount: 0,
           transientFailureCount: 0,
           lastFailure: { failureType: "stable-health-status-fetch-failed", status: response?.status || 0 },
           source: "render-health-status",
@@ -1800,6 +1808,10 @@ async function readStableHealthStatus(env = process.env, fetchImpl = globalThis.
       healthEndedAt: "",
       healthRequiredEndpoints: [],
       requiredEndpointCoverage: false,
+      healthSuccessCount: 0,
+      healthFailureCount: 0,
+      endpointSuccessCount: 0,
+      endpointFailureCount: 0,
       transientFailureCount: 0,
       lastFailure: { failureType: "stable-health-status-read-error", message: error?.message || String(error) },
       source: "render-health-status",
@@ -1823,6 +1835,10 @@ async function readStableHealthStatus(env = process.env, fetchImpl = globalThis.
     healthEndedAt: "",
     healthRequiredEndpoints: [],
     requiredEndpointCoverage: false,
+    healthSuccessCount: 0,
+    healthFailureCount: 0,
+    endpointSuccessCount: 0,
+    endpointFailureCount: 0,
     transientFailureCount: 0,
     lastFailure: null,
     source: "none",
@@ -1830,9 +1846,53 @@ async function readStableHealthStatus(env = process.env, fetchImpl = globalThis.
   };
 }
 
+function buildWatchdogStatusWithStableHealth(runtimeStatus = {}, stableHealthStatus = {}) {
+  const shouldUseScriptWatchdog =
+    stableHealthStatus.configured === true &&
+    (runtimeStatus.status === "missing" || runtimeStatus.stale === true || runtimeStatus.ok !== true);
+  if (!shouldUseScriptWatchdog) return runtimeStatus;
+
+  const scriptOk = stableHealthStatus.passed === true || (stableHealthStatus.ok === true && stableHealthStatus.stale !== true);
+  const scriptStatus = scriptOk
+    ? "script-healthy"
+    : stableHealthStatus.stale === true
+      ? "script-stale"
+      : `script-${stableHealthStatus.status || "unconfirmed"}`;
+  return {
+    ...runtimeStatus,
+    ok: scriptOk,
+    status: scriptStatus,
+    publicUrl: stableHealthStatus.publicUrl || runtimeStatus.publicUrl || "",
+    updatedAt: stableHealthStatus.updatedAt || runtimeStatus.updatedAt || "",
+    stale: stableHealthStatus.stale === true,
+    ageSeconds: stableHealthStatus.ageSeconds,
+    healthWindowSeconds: stableHealthStatus.healthWindowSeconds || runtimeStatus.healthWindowSeconds || 0,
+    healthIntervalSeconds: stableHealthStatus.healthIntervalSeconds || runtimeStatus.healthIntervalSeconds || 0,
+    healthTimeoutSeconds: stableHealthStatus.healthTimeoutSeconds || runtimeStatus.healthTimeoutSeconds || 0,
+    healthRequiredEndpoints: stableHealthStatus.healthRequiredEndpoints || runtimeStatus.healthRequiredEndpoints || [],
+    healthIterationCount: stableHealthStatus.healthIterationCount || runtimeStatus.healthIterationCount || 0,
+    healthStartedAt: stableHealthStatus.healthStartedAt || runtimeStatus.healthStartedAt || "",
+    healthEndedAt: stableHealthStatus.healthEndedAt || runtimeStatus.healthEndedAt || "",
+    healthSuccessCount: stableHealthStatus.healthSuccessCount || 0,
+    healthFailureCount: stableHealthStatus.healthFailureCount || 0,
+    endpointSuccessCount: stableHealthStatus.endpointSuccessCount || 0,
+    endpointFailureCount: stableHealthStatus.endpointFailureCount || 0,
+    transientFailureCount: stableHealthStatus.transientFailureCount || 0,
+    lastFailure: stableHealthStatus.lastFailure || null,
+    source: stableHealthStatus.source || "render-health-status",
+    substitute: true,
+    guidance:
+      stableHealthStatus.guidance ||
+      (scriptOk
+        ? "未检测到真实本机 watchdog，已使用免费健康检查脚本 JSON 作为临时 watchdog。"
+        : "未检测到真实本机 watchdog，免费健康检查脚本尚未通过。"),
+  };
+}
+
 async function publicPreviewAccessStatus(request, env = process.env) {
-  const status = readPublicPreviewRuntimeStatus(env);
+  const runtimeStatus = readPublicPreviewRuntimeStatus(env);
   const stableHealthStatus = await readStableHealthStatus(env);
+  const status = buildWatchdogStatusWithStableHealth(runtimeStatus, stableHealthStatus);
   const host = String(headerValue(request.headers, "host") || "");
   const forwardedProto = String(headerValue(request.headers, "x-forwarded-proto") || "");
   const proto = forwardedProto || (host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https");

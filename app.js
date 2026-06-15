@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v144";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v145";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、486 条自动化回归目标",
+    "后端 API、生产门禁规划、487 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -9101,6 +9101,20 @@ function sanitizePublicPreviewAccess(value) {
         : [],
       restartCount: Number.isFinite(Number(watchdog.restartCount)) ? Number(watchdog.restartCount) : 0,
       lastFailure: isPlainObject(watchdog.lastFailure) ? watchdog.lastFailure : null,
+      source: typeof watchdog.source === "string" ? watchdog.source : "",
+      substitute: watchdog.substitute === true,
+      healthSuccessCount: Number.isFinite(Number(watchdog.healthSuccessCount))
+        ? Number(watchdog.healthSuccessCount)
+        : 0,
+      healthFailureCount: Number.isFinite(Number(watchdog.healthFailureCount))
+        ? Number(watchdog.healthFailureCount)
+        : 0,
+      endpointSuccessCount: Number.isFinite(Number(watchdog.endpointSuccessCount))
+        ? Number(watchdog.endpointSuccessCount)
+        : 0,
+      endpointFailureCount: Number.isFinite(Number(watchdog.endpointFailureCount))
+        ? Number(watchdog.endpointFailureCount)
+        : 0,
       transientFailureCount: Number.isFinite(Number(watchdog.transientFailureCount))
         ? Number(watchdog.transientFailureCount)
         : 0,
@@ -20355,6 +20369,23 @@ function renderPublicPreviewAccessPanel(access = getPublicPreviewAccess()) {
     ? `最近监控：${lastWindow} 秒 / ${lastIterations || 0} 轮`
     : "最近监控：待连续证据";
   const failureText = lastFailureType ? `最近失败：${lastFailureType}` : "最近失败：无";
+  const scriptWatchdog =
+    watchdog.substitute === true ||
+    watchdog.source === "render-health-status" ||
+    String(watchdog.status || "").startsWith("script-");
+  const watchdogStatusText = scriptWatchdog
+    ? watchdog.ok
+      ? "脚本健康"
+      : "脚本未通过"
+    : watchdog.ok
+      ? "健康"
+      : watchdog.status || "未确认";
+  const scriptCheckText = scriptWatchdog
+    ? `脚本检查：成功 ${Number(watchdog.healthSuccessCount || 0)} / 失败 ${Number(watchdog.healthFailureCount || 0)}`
+    : "";
+  const endpointCheckText = scriptWatchdog
+    ? `端点检查：成功 ${Number(watchdog.endpointSuccessCount || 0)} / 失败 ${Number(watchdog.endpointFailureCount || 0)}`
+    : "";
   const stabilityText = stabilityGate.externalUseReady
     ? "稳定访问门禁：已通过"
     : "稳定访问门禁：未通过";
@@ -20410,7 +20441,9 @@ function renderPublicPreviewAccessPanel(access = getPublicPreviewAccess()) {
         <span>${escapeHtml(failureText)}</span>
         <span>${escapeHtml(temporaryContinuousText)}</span>
         <span>${escapeHtml(standbyText)}</span>
-        <span>watchdog：${escapeHtml(watchdog.ok ? "健康" : watchdog.status || "未确认")}${updatedAt ? ` · ${escapeHtml(updatedAt)}` : ""}</span>
+        <span>watchdog：${escapeHtml(watchdogStatusText)}${updatedAt ? ` · ${escapeHtml(updatedAt)}` : ""}</span>
+        ${scriptCheckText ? `<span>${escapeHtml(scriptCheckText)}</span>` : ""}
+        ${endpointCheckText ? `<span>${escapeHtml(endpointCheckText)}</span>` : ""}
         <span>${escapeHtml(fallbackText)}</span>
         <span>${escapeHtml(stableText)}</span>
         <span>${escapeHtml(stabilityText)}</span>

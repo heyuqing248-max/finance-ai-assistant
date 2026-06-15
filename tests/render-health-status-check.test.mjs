@@ -39,6 +39,10 @@ test("render health status check writes stable gate JSON and HTML", async () => 
   assert.equal(result.status.stabilityGate.continuousHealthPassed, true);
   assert.equal(result.status.healthWindowMs, 180_000);
   assert.equal(result.status.healthIterationCount, 3);
+  assert.equal(result.status.healthSuccessCount, 3);
+  assert.equal(result.status.healthFailureCount, 0);
+  assert.equal(result.status.endpointSuccessCount, 15);
+  assert.equal(result.status.endpointFailureCount, 0);
   assert.deepEqual(result.status.healthRequiredEndpoints, [
     "/",
     "/api/health",
@@ -56,6 +60,9 @@ test("render health status check writes stable gate JSON and HTML", async () => 
   const json = JSON.parse(await readFile(result.jsonPath, "utf8"));
   const html = await readFile(result.htmlPath, "utf8");
   assert.equal(json.ok, true);
+  assert.equal(json.healthSuccessCount, 3);
+  assert.equal(json.endpointSuccessCount, 15);
   assert.match(html, /Finance AI Render Health/);
+  assert.match(html, /Script checks/);
   assert.doesNotMatch(JSON.stringify(json), /sk-proj|sk-or-v1|gsk_|AQ\./);
 });

@@ -39,6 +39,7 @@ Note: real keys must only be stored in Render Dashboard Value fields, not in the
 | --- | --- | --- | --- |
 | P0 | 固定公开网址稳定可用 | 已验证 / Verified | `https://finance-ai-assistant-web.onrender.com` 通过 180 秒稳定门禁；`externalUseReady=true`、`continuousHealthPassed=true`、`lastFailure=null`。 |
 | P0 | 稳定访问门禁仍显示未通过 | 已修复 / Fixed | v144 新增 GitHub Actions / 本地脚本连续 180 秒门禁：覆盖 `/`、`/api/health`、MSFT 分析、腾讯控股搜索、`/api/ai-services`；结果发布到 `render-health-status/render-health.json`，Render 后端读取后点亮固定网址稳定访问门禁。 |
+| P0 | watchdog 显示 missing | 已修复 / Fixed | v145 在没有真实本机 watchdog 服务时，后端会使用 GitHub Actions / 本地脚本生成的 `render-health.json` 作为免费替代 watchdog；页面显示 `watchdog：脚本健康`、最近检查时间、脚本成功/失败次数和端点成功/失败次数，不再只显示 `missing`。 |
 | P0 | 临时链接失效后的备用访问 | 已建立 / Established | 固定 Render 为主入口；`lhr.life` 和本机地址只作为备用说明。 |
 | P1 | 完整真实 AI 输出 | 已跑通但需持续监控 / Proven but not continuously guaranteed | v123 线上 MSFT 曾返回 `analysisMode=real-provider`；Render key redeploy 后，`600519` 也返回 `HTTP 200` 且成功模型为 `openai/gpt-oss-120b`。连续调用仍可能因 provider 额度/冷却降级规则参考。 |
 | P1 | 完整真实 AI 稳定性验收 | 新增门禁 / Gate added | `npm run gate:full-ai -- --attempts 3 --interval-ms 10000 --analysis-timeout-ms 60000` 会连续检查完整 AI；任一轮降级规则参考即失败。 |

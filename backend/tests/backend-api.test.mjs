@@ -265,6 +265,10 @@ test("public preview access status accepts published fixed Render health gate JS
         "/api/ai-services",
       ],
       healthIterationCount: 12,
+      healthSuccessCount: 12,
+      healthFailureCount: 0,
+      endpointSuccessCount: 60,
+      endpointFailureCount: 0,
       transientFailureCount: 0,
       lastFailure: null,
     }),
@@ -285,6 +289,12 @@ test("public preview access status accepts published fixed Render health gate JS
     assert.equal(response.body.publicPreviewAccess.stableHosting.healthGatePassed, true);
     assert.equal(response.body.publicPreviewAccess.stabilityGate.externalUseReady, true);
     assert.equal(response.body.publicPreviewAccess.stabilityGate.fixedContinuousHealthPassed, true);
+    assert.equal(response.body.publicPreviewAccess.watchdog.ok, true);
+    assert.equal(response.body.publicPreviewAccess.watchdog.status, "script-healthy");
+    assert.equal(response.body.publicPreviewAccess.watchdog.source, "render-health-status");
+    assert.equal(response.body.publicPreviewAccess.watchdog.substitute, true);
+    assert.equal(response.body.publicPreviewAccess.watchdog.healthSuccessCount, 12);
+    assert.equal(response.body.publicPreviewAccess.watchdog.endpointSuccessCount, 60);
     assert.equal(response.body.publicPreviewAccess.healthGate.requiredEndpointCoverage, true);
     assert.equal(response.body.publicPreviewAccess.healthGate.lastWindowSeconds, 180);
     assert.equal(response.body.publicPreviewAccess.healthGate.lastIterationCount, 12);

@@ -829,6 +829,80 @@ test("data source card shows public preview recovery access summary", () => {
   assert.match(html, /no tunnel here/);
 });
 
+test("data source card shows script watchdog substitute counts instead of missing", () => {
+  const app = createHarness({
+    apiMode: "backend",
+    apiHealthStatus: "connected",
+    apiPublicPreviewAccess: JSON.stringify({
+      status: "healthy",
+      currentOrigin: "https://finance-ai-assistant-web.onrender.com",
+      recommendedAccess: {
+        mode: "public",
+        url: "https://finance-ai-assistant-web.onrender.com",
+        label: "固定线上测试环境",
+        reason: "固定网址已通过 GitHub Actions 连续健康门禁。",
+      },
+      accessEntries: [],
+      watchdog: {
+        ok: true,
+        status: "script-healthy",
+        publicUrl: "https://finance-ai-assistant-web.onrender.com",
+        updatedAt: "2026-06-15T09:03:00.000Z",
+        stale: false,
+        source: "render-health-status",
+        substitute: true,
+        healthWindowSeconds: 180,
+        healthIterationCount: 12,
+        healthSuccessCount: 12,
+        healthFailureCount: 0,
+        endpointSuccessCount: 60,
+        endpointFailureCount: 0,
+        healthRequiredEndpoints: [
+          "/",
+          "/api/health",
+          "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "/api/ai-services",
+        ],
+      },
+      stableHosting: {
+        configured: true,
+        url: "https://finance-ai-assistant-web.onrender.com",
+        status: "configured",
+        healthGatePassed: true,
+        releaseReady: true,
+      },
+      stabilityGate: {
+        externalUseReady: true,
+        temporaryAccessContinuouslyReady: false,
+        standbyReadyCount: 0,
+        standbyConfiguredCount: 0,
+        monitorWindowSeconds: 180,
+        monitorIterationCount: 12,
+      },
+      healthGate: {
+        durationSeconds: 180,
+        lastWindowSeconds: 180,
+        lastIterationCount: 12,
+        requiredEndpoints: [
+          "/",
+          "/api/health",
+          "/api/analysis?symbol=MSFT&riskProfile=balanced",
+          "/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1",
+          "/api/ai-services",
+        ],
+      },
+      localFallback: { url: "http://127.0.0.1:4192", status: "unknown" },
+    }),
+  });
+
+  const html = app.byId.get("dataSourceState").innerHTML;
+  assert.match(html, /watchdog：脚本健康/);
+  assert.match(html, /脚本检查：成功 12 \/ 失败 0/);
+  assert.match(html, /端点检查：成功 60 \/ 失败 0/);
+  assert.doesNotMatch(html, /watchdog：missing|watchdog：未确认/);
+});
+
 test("watchlist renders loading and error states with retry", async () => {
   const loadingApp = createHarness({
     prototypeWatchlistState: "loading",
@@ -2989,7 +3063,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /486 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /487 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -3005,7 +3079,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /486 条自动化回归/);
+  assert.match(progressHtml, /487 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3020,7 +3094,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /486 条自动化回归/);
+  assert.match(progressHtml, /487 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3035,7 +3109,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /486 条自动化回归/);
+  assert.match(progressHtml, /487 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4071,10 +4145,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v144",
+    "finance-ai-assistant-v145",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v144/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v145/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4091,7 +4165,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v144",
+    "finance-ai-assistant-v145",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });

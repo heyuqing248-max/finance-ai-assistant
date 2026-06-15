@@ -44,6 +44,14 @@ function escapeHtml(value = "") {
 function toRenderHealthStatus(health) {
   const updatedAt = health.endedAt || new Date().toISOString();
   const status = health.ok ? "healthy" : "failed";
+  const iterations = Array.isArray(health.iterations) ? health.iterations : [];
+  const endpointResults = iterations.flatMap((iteration) =>
+    Array.isArray(iteration.results) ? iteration.results : [],
+  );
+  const healthSuccessCount = iterations.filter((iteration) => iteration.ok === true).length;
+  const healthFailureCount = iterations.filter((iteration) => iteration.ok !== true).length;
+  const endpointSuccessCount = endpointResults.filter((result) => result.ok === true).length;
+  const endpointFailureCount = endpointResults.filter((result) => result.ok !== true).length;
   return {
     service: "finance-ai-assistant-web",
     url: health.publicUrl,
@@ -60,11 +68,15 @@ function toRenderHealthStatus(health) {
     healthTimeoutMs: health.timeoutMs,
     healthRequiredEndpoints: health.checkedEndpoints,
     healthIterationCount: health.iterationCount,
+    healthSuccessCount,
+    healthFailureCount,
+    endpointSuccessCount,
+    endpointFailureCount,
     transientFailureCount: health.transientFailureCount,
     lastFailure: health.lastFailure,
     localFallbackOk: health.localFallback?.ok ?? null,
-    checks: health.iterations.at(-1)?.results || [],
-    iterations: health.iterations,
+    checks: iterations.at(-1)?.results || [],
+    iterations,
     stabilityGate: {
       externalUseReady: health.ok,
       continuousHealthPassed: health.ok,
@@ -117,6 +129,7 @@ function renderStatusHtml(status) {
       <p>Checked at: <code>${escapeHtml(status.updatedAt)}</code></p>
       <p>Target: <a href="${escapeHtml(status.url)}">${escapeHtml(status.url)}</a></p>
       <p>Window: <code>${escapeHtml(String(Math.round(status.healthWindowMs / 1000)))}s</code> · Iterations: <code>${escapeHtml(String(status.healthIterationCount))}</code></p>
+      <p>Script checks: <code>${escapeHtml(String(status.healthSuccessCount || 0))}</code> success / <code>${escapeHtml(String(status.healthFailureCount || 0))}</code> failure · Endpoint checks: <code>${escapeHtml(String(status.endpointSuccessCount || 0))}</code> success / <code>${escapeHtml(String(status.endpointFailureCount || 0))}</code> failure</p>
       <p>JSON: <a href="./render-health.json">render-health.json</a></p>
       <table>
         <thead><tr><th>Endpoint</th><th>Status</th><th>Duration</th></tr></thead>
