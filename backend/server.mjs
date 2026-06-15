@@ -93,7 +93,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、492 条自动化回归目标",
+    "后端 API、生产门禁规划、493 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -117,6 +117,7 @@ const projectProgress = {
     "Twelve Data 缺 key 时会明确显示 missing-key，不再误标为 configured",
     "Yahoo Chart fallback 已加入免费行情接力，用于扩展 A 股/港股/美股本地 Demo 报价覆盖",
     "Yahoo Chart history fallback 已接入真实走势图，用于减少只有真实报价没有真实走势的空白",
+    "Yahoo Chart 免费接口请求头已修复为浏览器兼容格式，减少 Apple 等美股 quote/history 被 429 拒绝",
     "Stooq CSV 已作为 Yahoo Chart 后的免费美股报价和历史走势兜底，Apple/MSFT 等常见美股不再只依赖单一公开端点",
     "A 股新闻已扩展到 GDELT 公开新闻 fallback，A 股公告已接入上交所公开公告源",
     "个股新闻增加公司别名相关性过滤，避免真实 RSS 混入明显无关标题",

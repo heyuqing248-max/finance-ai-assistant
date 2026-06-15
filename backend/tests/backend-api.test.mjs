@@ -2233,6 +2233,7 @@ test("market-data adapter parses Yahoo Finance chart history", () => {
 
 test("market-data multi-free relay falls back to Yahoo Chart for A-share quote", async () => {
   const requestedUrls = [];
+  let requestedHeaders = {};
   const adapter = createMarketDataProviderAdapter({
     env: {
       FINANCE_AI_MARKET_DATA_PROVIDER: "multi-free",
@@ -2241,9 +2242,10 @@ test("market-data multi-free relay falls back to Yahoo Chart for A-share quote",
       FINANCE_AI_MARKET_DATA_ALLOW_NETWORK: "true",
       FINANCE_AI_MARKET_DATA_MODE: "delayed",
     },
-    fetchImpl: async (url) => {
+    fetchImpl: async (url, options = {}) => {
       const requestedUrl = String(url);
       requestedUrls.push(requestedUrl);
+      requestedHeaders = options.headers || {};
       if (requestedUrl.includes("twelvedata.com")) {
         return { ok: true, json: async () => ({ status: "error", message: "unsupported symbol" }) };
       }
@@ -2288,6 +2290,8 @@ test("market-data multi-free relay falls back to Yahoo Chart for A-share quote",
   assert.equal(requestedUrls.length, 1);
   assert.match(requestedUrls[0], /query1\.finance\.yahoo\.com/);
   assert.match(requestedUrls[0], /600519\.SS/);
+  assert.match(requestedHeaders["user-agent"], /Mozilla\/5\.0/);
+  assert.match(requestedHeaders.accept, /application\/json/);
 });
 
 test("market-data multi-free relay falls back to Tencent Quote when Yahoo is rate limited", async () => {
@@ -2347,14 +2351,16 @@ test("market-data multi-free relay falls back to Tencent Quote when Yahoo is rat
 
 test("market-data adapter can fetch Yahoo Chart history when network flag is enabled", async () => {
   let requestedUrl = "";
+  let requestedHeaders = {};
   const adapter = createMarketDataProviderAdapter({
     env: {
       FINANCE_AI_MARKET_DATA_PROVIDER: "yahoo-chart",
       FINANCE_AI_MARKET_DATA_ALLOW_NETWORK: "true",
       FINANCE_AI_MARKET_DATA_MODE: "delayed",
     },
-    fetchImpl: async (url) => {
+    fetchImpl: async (url, options = {}) => {
       requestedUrl = String(url);
+      requestedHeaders = options.headers || {};
       return {
         ok: true,
         json: async () => ({
@@ -2387,6 +2393,8 @@ test("market-data adapter can fetch Yahoo Chart history when network flag is ena
   assert.match(requestedUrl, /query1\.finance\.yahoo\.com/);
   assert.match(requestedUrl, /600519\.SS/);
   assert.match(requestedUrl, /interval=1mo/);
+  assert.match(requestedHeaders["user-agent"], /Mozilla\/5\.0/);
+  assert.match(requestedHeaders.accept, /application\/json/);
 });
 
 test("market-data adapter falls back to Stooq history when Yahoo Chart history fails", async () => {

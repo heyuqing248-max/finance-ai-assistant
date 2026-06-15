@@ -52,6 +52,7 @@ Note: real keys must only be stored in Render Dashboard Value fields, not in the
 | P1 | 缺少历史走势时未来情景目标价显示 0.00 | 已修复 / Fixed | v136 情景卡片保留 `+6% / 0% / -6%` 等收益百分比，但 `targetPrice` 为 `0/null/缺失` 时显示 `目标价暂无`，不再渲染 `0.00`。 |
 | P1 | 有真实报价但仍提示暂未获得真实行情 | 已修复 / Fixed | v137 前后端统一拆分 `真实报价 / 历史走势 / 技术分析`。报价-only 场景显示 `真实报价：已获得 ...；历史走势：缺失；技术分析：低置信。`，并有回归禁止 `暂未获得真实行情` 误判。 |
 | P1 | Apple 页面缺少真实报价和历史走势 | 已补强 / Improved | v150 在 Yahoo Chart 后新增 Stooq CSV 免费兜底，`multi-free` 优先尝试 Yahoo Chart -> Stooq CSV -> Twelve Data -> Alpha Vantage -> Tencent Quote；历史走势在 Yahoo 失败后也会尝试 Stooq CSV。所有免费源失败时继续显示 `暂无真实报价/暂无真实走势`，不回退样例。 |
+| P1 | Yahoo 免费接口偶发 429 导致 Apple 真实行情空白 | 已修复 / Fixed | v151 Yahoo Chart quote/history 请求增加浏览器兼容 `User-Agent` 与 accept 头；实测同一 AAPL Chart 请求从 `429 Edge: Too Many Requests` 恢复为 `HTTP 200`。Stooq 触发验证页时不绕过，继续作为可用时的后备。 |
 | P1 | 真实报价缺失时技术分析仍显示 50/100 | 已修复 / Fixed | v150 后端在真实报价和历史走势都缺失时不返回 `technicalScore`，前端主指标显示 `技术分析：暂无评分`，六因子显示 `暂无评分` 并保留“缺少真实报价和历史走势”原因；规则计算内部可用中性值降权，但不把它展示成真实技术面分数。 |
 | P1 | 设置页数据源状态和首页状态不一致 | 已修复 / Fixed | v138 设置页拆成三层：`全局 provider 配置状态`、`当前股票本次请求状态`、`页面缓存/展示状态`。全局配置可继续显示待接入，但当前股票若已有真实报价、新闻、公告或宏观，会在本次请求层明确显示已连接/已获得。 |
 | P1 | 宏观更新时间缺少年份和频率 | 已修复 / Fixed | v147 宏观更新时间改用完整日期格式；World Bank Open Data 等年度宏观来源显示为 `YYYY-MM-DD · 年度宏观数据`，避免 `12/31 10:00` 这类缺少年份和频率的短格式。 |

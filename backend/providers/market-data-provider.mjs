@@ -21,6 +21,11 @@ const yahooChartBaseUrl = "https://query1.finance.yahoo.com/v8/finance/chart";
 const stooqQuoteBaseUrl = "https://stooq.com/q/l/";
 const stooqHistoryBaseUrl = "https://stooq.com/q/d/l/";
 const tencentQuoteBaseUrl = "https://qt.gtimg.cn/q=";
+const publicChartRequestHeaders = {
+  accept: "application/json,text/plain,*/*",
+  "user-agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) FinanceAIAssistant/1.0 Safari/537.36",
+};
 
 function redactAlphaVantageMessage(message, input = {}) {
   const raw = String(message || "");
@@ -1039,7 +1044,7 @@ async function fetchYahooChartQuote({ config, input, fetchImpl = globalThis.fetc
   try {
     const response = await fetchImpl(url, {
       method: "GET",
-      headers: { accept: "application/json" },
+      headers: publicChartRequestHeaders,
       signal: controller.signal,
     });
     const payload = await response.json();
@@ -1211,7 +1216,7 @@ async function fetchYahooChartHistory({ config, input, fetchImpl = globalThis.fe
     try {
       const response = await fetchImpl(url, {
         method: "GET",
-        headers: { accept: "application/json" },
+        headers: publicChartRequestHeaders,
         signal: controller.signal,
       });
       const payload = await response.json();
