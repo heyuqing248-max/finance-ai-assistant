@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v139";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v140";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、481 条自动化回归目标",
+    "后端 API、生产门禁规划、482 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -13994,17 +13994,29 @@ function classifyNewsForCurrentStock(news) {
 function enrichNewsRelevance(items = []) {
   return items.map((item) => {
     const relevance = classifyNewsForCurrentStock(item);
+    const lowCredibility = isLowCredibilityOrdinaryNews(item);
     return {
       ...item,
-      relevanceGroup: relevance.group,
-      relevanceRank: relevance.rank,
-      relevanceReason: relevance.reason,
-      directStockRelevance: relevance.direct === true,
+      relevanceGroup: lowCredibility ? "辅助参考" : relevance.group,
+      relevanceRank: lowCredibility ? 5 : relevance.rank,
+      relevanceReason: lowCredibility
+        ? `${relevance.reason}；但来源可信度低于 70，默认折叠为辅助参考，不进入公司直接新闻主列表。`
+        : relevance.reason,
+      directStockRelevance: lowCredibility ? false : relevance.direct === true,
+      originalRelevanceGroup: lowCredibility ? relevance.group : "",
     };
   });
 }
 
-const newsGroupOrder = ["公司直接新闻", "公司公告", "管理层/公开言论", "供应链/监管新闻", "行业新闻", "市场相关"];
+const newsGroupOrder = [
+  "公司公告",
+  "公司直接新闻",
+  "管理层/公开言论",
+  "供应链/监管新闻",
+  "行业新闻",
+  "市场相关",
+  "辅助参考",
+];
 
 function groupNewsItemsForDisplay(items = []) {
   const groups = new Map();
@@ -14079,6 +14091,12 @@ function getFirstScreenNewsItems(sortedItems = []) {
   return sortedItems
     .filter((item) => Number(item.relevanceRank) <= 3 && item.relevanceGroup !== "市场相关")
     .slice(0, 3);
+}
+
+function isLowCredibilityOrdinaryNews(news) {
+  if (news?.kind === "filing") return false;
+  const score = Number(news?.sourceCredibilityScore);
+  return Number.isFinite(score) && score > 0 && score < 70;
 }
 
 function getLowCredibilityHint(news) {

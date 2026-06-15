@@ -2977,7 +2977,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /481 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /482 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2993,7 +2993,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /481 条自动化回归/);
+  assert.match(progressHtml, /482 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3008,7 +3008,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /481 条自动化回归/);
+  assert.match(progressHtml, /482 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3023,7 +3023,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /481 条自动化回归/);
+  assert.match(progressHtml, /482 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4059,10 +4059,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v139",
+    "finance-ai-assistant-v140",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v139/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v140/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4079,7 +4079,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v139",
+    "finance-ai-assistant-v140",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -13890,8 +13890,9 @@ test("connected backend news prioritizes direct stock relevance and labels weak 
   const html = app.byId.get("newsList").innerHTML;
   assert.match(html, /默认只显示/);
   assert.match(html, /news-group-title/);
-  assert.match(html, /公司直接新闻（2）/);
+  assert.match(html, /公司直接新闻（1）/);
   assert.match(html, /公司直接新闻/);
+  assert.match(html, /辅助参考/);
   assert.match(html, /供应链\/监管新闻/);
   assert.match(html, /行业新闻|市场相关/);
   assert.match(html, /市场相关/);
@@ -13899,13 +13900,17 @@ test("connected backend news prioritizes direct stock relevance and labels weak 
   assert.match(html, /来源可信度偏低，仅作辅助参考/);
   assert.match(html, /当前评分 62\/100 低于 70 分阈值/);
   assert.match(html, /不直接推动结论/);
-  assert.ok(html.indexOf("Microsoft Azure demand") < html.indexOf("Ryanair says travel demand"));
   const beforeFold = html.slice(0, html.indexOf("<details"));
-  assert.match(beforeFold, /Microsoft Azure demand/);
   assert.match(beforeFold, /Microsoft announces new Copilot/);
-  assert.doesNotMatch(beforeFold, /Ryanair says travel demand|Cadence Design Systems|Nvidia supplier capacity|Meta Platforms receives/);
+  assert.doesNotMatch(
+    beforeFold,
+    /Microsoft Azure demand|Ryanair says travel demand|Cadence Design Systems|Nvidia supplier capacity|Meta Platforms receives/,
+  );
+  const folded = html.slice(html.indexOf("<details"));
+  assert.match(folded, /Microsoft Azure demand/);
+  assert.match(folded, /辅助参考/);
   assert.match(html, /来自个股情报接口，但标题未直接命中公司名、ticker 或产品词/);
-  assert.match(html, /展开另外 4 条新闻/);
+  assert.match(html, /展开另外 5 条新闻/);
 });
 
 test("connected backend news dedupes repeated folded headlines before display", async () => {
