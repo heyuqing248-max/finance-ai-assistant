@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v140";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v141";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8559,7 +8559,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、482 条自动化回归目标",
+    "后端 API、生产门禁规划、483 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -13880,16 +13880,74 @@ function getNewsAuthorizationLabel(news) {
 }
 
 function getNewsAliasesForStock(stock = state.selectedStock) {
-  const base = [stock?.name, stock?.code].filter(Boolean);
+  return getNewsAliasRulesForStock(stock).map((item) => item.term);
+}
+
+function getNewsAliasRulesForStock(stock = state.selectedStock) {
+  const rules = [];
+  if (stock?.name) {
+    rules.push({
+      term: stock.name,
+      matchType: /[\u4e00-\u9fff]/.test(String(stock.name)) ? "公司中文名" : "公司英文名",
+    });
+  }
+  if (stock?.code) {
+    rules.push({ term: stock.code, matchType: "股票代码" });
+  }
   const knownAliases = {
-    MSFT: ["Microsoft", "微软", "Azure", "OpenAI", "Copilot", "Windows"],
-    AAPL: ["Apple", "苹果", "iPhone", "iPad", "Mac"],
-    "0700": ["Tencent", "腾讯", "微信", "WeChat", "游戏"],
-    "600519": ["贵州茅台", "茅台", "Kweichow Moutai", "Moutai"],
+    MSFT: [
+      { term: "Microsoft", matchType: "公司英文名" },
+      { term: "微软", matchType: "公司中文名" },
+      { term: "Azure", matchType: "产品关键词" },
+      { term: "OpenAI", matchType: "产品/合作关键词" },
+      { term: "Copilot", matchType: "产品关键词" },
+      { term: "Windows", matchType: "产品关键词" },
+    ],
+    AAPL: [
+      { term: "Apple", matchType: "公司英文名" },
+      { term: "苹果", matchType: "公司中文名" },
+      { term: "iPhone", matchType: "产品关键词" },
+      { term: "iPad", matchType: "产品关键词" },
+      { term: "Mac", matchType: "产品关键词" },
+    ],
+    "0700": [
+      { term: "Tencent", matchType: "公司英文名" },
+      { term: "腾讯", matchType: "公司中文名" },
+      { term: "微信", matchType: "产品关键词" },
+      { term: "WeChat", matchType: "产品关键词" },
+      { term: "游戏", matchType: "产品关键词" },
+    ],
+    "600519": [
+      { term: "贵州茅台", matchType: "公司中文名" },
+      { term: "茅台", matchType: "公司中文名" },
+      { term: "Kweichow Moutai", matchType: "公司英文名" },
+      { term: "Moutai", matchType: "公司英文名" },
+    ],
   };
-  return [...new Set([...base, ...(knownAliases[stock?.code] || [])])]
-    .map((item) => String(item || "").trim())
-    .filter((item) => item.length >= 2);
+  rules.push(...(knownAliases[stock?.code] || []));
+  const seen = new Set();
+  return rules
+    .map((item) => ({
+      term: String(item.term || "").trim(),
+      matchType: String(item.matchType || "关键词").trim() || "关键词",
+    }))
+    .filter((item) => {
+      const key = item.term.toLowerCase();
+      if (item.term.length < 2 || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function findNewsAliasMatch(haystack, stock = state.selectedStock) {
+  const normalizedHaystack = String(haystack || "").toLowerCase();
+  return getNewsAliasRulesForStock(stock).find((alias) =>
+    normalizedHaystack.includes(alias.term.toLowerCase()),
+  );
+}
+
+function formatNewsMatchReason(match) {
+  return match ? `命中${match.matchType}：${match.term}` : "";
 }
 
 function getNewsIndustryTermsForStock(stock = state.selectedStock) {
@@ -13921,8 +13979,8 @@ function classifyNewsForCurrentStock(news) {
   const title = String(news?.title || "");
   const source = String(news?.source || "");
   const haystack = `${title} ${source}`.toLowerCase();
-  const aliases = getNewsAliasesForStock();
-  const matchedAlias = aliases.find((alias) => haystack.includes(alias.toLowerCase()));
+  const matchedAlias = findNewsAliasMatch(haystack);
+  const aliasReason = formatNewsMatchReason(matchedAlias);
   const industryTerms = getNewsIndustryTermsForStock();
   const matchedIndustryTerm = industryTerms.find((term) => haystack.includes(term));
   const supplyRegulatoryTerms = getNewsSupplyRegulatoryTermsForStock();
@@ -13933,7 +13991,7 @@ function classifyNewsForCurrentStock(news) {
         group: "供应链/监管新闻",
         rank: 3,
         direct: false,
-        reason: `来自个股情报接口，标题命中供应链/监管关键词 ${matchedSupplyRegulatoryTerm}，未直接命中公司名或 ticker。`,
+        reason: `来自个股情报接口；命中供应链/监管关键词：${matchedSupplyRegulatoryTerm}；未直接命中公司名或股票代码。`,
       };
     }
     if (!matchedAlias && matchedIndustryTerm) {
@@ -13941,7 +13999,7 @@ function classifyNewsForCurrentStock(news) {
         group: "行业新闻",
         rank: 4,
         direct: false,
-        reason: `来自个股情报接口，但标题仅命中行业关键词 ${matchedIndustryTerm}，未直接命中公司名或 ticker。`,
+        reason: `来自个股情报接口；命中行业关键词：${matchedIndustryTerm}；未直接命中公司名或股票代码。`,
       };
     }
     return {
@@ -13949,22 +14007,27 @@ function classifyNewsForCurrentStock(news) {
       rank: matchedAlias ? 0 : 4,
       direct: Boolean(matchedAlias),
       reason: matchedAlias
-        ? `标题或来源包含 ${matchedAlias}`
-        : "来自个股情报接口，但标题未直接命中公司名、ticker 或产品词，作为背景参考。",
+        ? `来自个股情报接口；${aliasReason}。`
+        : "来自个股情报接口；未直接命中公司中文名、公司英文名、股票代码或产品关键词，作为背景参考。",
     };
   }
   if (news?.kind === "filing") {
-    return { group: "公司公告", rank: 1, direct: true, reason: "来自当前股票公告接口。" };
+    return { group: "公司公告", rank: 1, direct: true, reason: "命中公告接口：来自当前股票公告接口。" };
   }
   if (news?.kind === "statement") {
-    return { group: "管理层/公开言论", rank: 2, direct: true, reason: "来自当前股票公开言论接口。" };
+    return {
+      group: "管理层/公开言论",
+      rank: 2,
+      direct: true,
+      reason: "命中公开言论接口：来自当前股票公开言论接口。",
+    };
   }
   if (matchedAlias) {
     return {
       group: "公司直接新闻",
       rank: 0,
       direct: true,
-      reason: `标题或来源包含 ${matchedAlias}`,
+      reason: aliasReason,
     };
   }
   if (matchedSupplyRegulatoryTerm) {
@@ -13972,7 +14035,7 @@ function classifyNewsForCurrentStock(news) {
       group: "供应链/监管新闻",
       rank: 3,
       direct: false,
-      reason: `标题或来源包含供应链/监管关键词 ${matchedSupplyRegulatoryTerm}，未直接命中公司名或 ticker。`,
+      reason: `命中供应链/监管关键词：${matchedSupplyRegulatoryTerm}；未直接命中公司名或股票代码。`,
     };
   }
   if (matchedIndustryTerm) {
@@ -13980,14 +14043,14 @@ function classifyNewsForCurrentStock(news) {
       group: "行业新闻",
       rank: 4,
       direct: false,
-      reason: `标题或来源包含行业关键词 ${matchedIndustryTerm}，未直接命中公司名或 ticker。`,
+      reason: `命中行业关键词：${matchedIndustryTerm}；未直接命中公司名或股票代码。`,
     };
   }
   return {
     group: "市场相关",
     rank: 4,
     direct: false,
-    reason: "未直接命中公司名或 ticker，作为市场背景参考。",
+    reason: "未直接命中公司中文名、公司英文名、股票代码或产品关键词，作为市场背景参考。",
   };
 }
 

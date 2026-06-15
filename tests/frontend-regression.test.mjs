@@ -2977,7 +2977,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /482 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /483 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -2993,7 +2993,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /482 条自动化回归/);
+  assert.match(progressHtml, /483 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3008,7 +3008,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /482 条自动化回归/);
+  assert.match(progressHtml, /483 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3023,7 +3023,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /482 条自动化回归/);
+  assert.match(progressHtml, /483 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4059,10 +4059,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v140",
+    "finance-ai-assistant-v141",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v140/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v141/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4079,7 +4079,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v140",
+    "finance-ai-assistant-v141",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -13896,7 +13896,7 @@ test("connected backend news prioritizes direct stock relevance and labels weak 
   assert.match(html, /供应链\/监管新闻/);
   assert.match(html, /行业新闻|市场相关/);
   assert.match(html, /市场相关/);
-  assert.match(html, /相关性：标题或来源包含 Microsoft|来自个股情报接口/);
+  assert.match(html, /相关性：命中公司英文名：Microsoft|来自个股情报接口；命中公司英文名：Microsoft/);
   assert.match(html, /来源可信度偏低，仅作辅助参考/);
   assert.match(html, /当前评分 62\/100 低于 70 分阈值/);
   assert.match(html, /不直接推动结论/);
@@ -13909,8 +13909,85 @@ test("connected backend news prioritizes direct stock relevance and labels weak 
   const folded = html.slice(html.indexOf("<details"));
   assert.match(folded, /Microsoft Azure demand/);
   assert.match(folded, /辅助参考/);
-  assert.match(html, /来自个股情报接口，但标题未直接命中公司名、ticker 或产品词/);
+  assert.match(html, /来自个股情报接口；未直接命中公司中文名、公司英文名、股票代码或产品关键词/);
   assert.match(html, /展开另外 5 条新闻/);
+});
+
+test("connected backend news explains exact relevance match type for Moutai items", async () => {
+  const app = createHarness(
+    {
+      apiMode: "backend",
+      apiHealthStatus: "connected",
+      selectedMarket: "a",
+      selectedStockCode: "600519",
+    },
+    {
+      fetchImpl: async (url) => {
+        if (url.endsWith("/api/news/intelligence?market=a&symbol=600519&minImportance=70")) {
+          return {
+            ok: true,
+            json: async () => ({
+              items: [
+                {
+                  title: "Kweichow Moutai channel inventory improves",
+                  source: { label: "Yahoo Finance RSS" },
+                  importanceScore: 84,
+                  sourceCredibilityScore: 82,
+                },
+              ],
+            }),
+          };
+        }
+        if (url.endsWith("/api/news?market=a&symbol=600519")) {
+          return {
+            ok: true,
+            json: async () => ({
+              market: "a",
+              sourceStatus: "real-provider",
+              items: [
+                {
+                  title: "600519 distributor policy update",
+                  source: "API 源",
+                  importance: 78,
+                  sourceCredibilityScore: 80,
+                },
+                {
+                  title: "Premium liquor channel checks improve",
+                  source: "API 源",
+                  importance: 76,
+                  sourceCredibilityScore: 80,
+                },
+              ],
+            }),
+          };
+        }
+        if (url.endsWith("/api/news/filings?market=a&symbol=600519")) {
+          return {
+            ok: true,
+            json: async () => ({
+              items: [
+                {
+                  title: "贵州茅台关于召开股东大会的公告",
+                  source: { label: "上海证券交易所公告" },
+                  importanceScore: 82,
+                  sourceCredibilityScore: 95,
+                },
+              ],
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ items: [] }) };
+      },
+    },
+  );
+
+  await app.context.window.financeAIAssistantApp.loadNews();
+
+  const html = app.byId.get("newsList").innerHTML;
+  assert.match(html, /命中公司英文名：Kweichow Moutai/);
+  assert.match(html, /命中股票代码：600519/);
+  assert.match(html, /命中供应链\/监管关键词：premium liquor channel/);
+  assert.match(html, /命中公告接口：来自当前股票公告接口/);
 });
 
 test("connected backend news dedupes repeated folded headlines before display", async () => {
