@@ -1,4 +1,4 @@
-const PWA_CACHE_VERSION = "finance-ai-assistant-v148";
+const PWA_CACHE_VERSION = "finance-ai-assistant-v149";
 const STRICT_REAL_DATA_MODE = true;
 const PROVIDER_ISSUE_COOLDOWN_MS = 10 * 60 * 1000;
 const AI_MODEL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -8505,10 +8505,30 @@ function sanitizeStoredSelectedStock(value) {
   return stock?.isMetadataOnly ? stock : null;
 }
 
-function getRefreshToken() {
+function decodeLocationQueryPart(value) {
+  try {
+    return decodeURIComponent(String(value ?? "").replace(/\+/g, " "));
+  } catch {
+    return String(value ?? "").replace(/\+/g, " ");
+  }
+}
+
+function getLocationQueryParam(name) {
   if (typeof window.location?.search !== "string") return "";
-  const match = window.location.search.match(/[?&]refresh=([^&]+)/);
-  return match ? decodeURIComponent(match[1].replace(/\+/g, " ")) : "";
+  const query = window.location.search.startsWith("?")
+    ? window.location.search.slice(1)
+    : window.location.search;
+  for (const entry of query.split("&")) {
+    if (!entry) continue;
+    const [rawName, ...rawValueParts] = entry.split("=");
+    if (decodeLocationQueryPart(rawName) !== name) continue;
+    return decodeLocationQueryPart(rawValueParts.join("="));
+  }
+  return "";
+}
+
+function getRefreshToken() {
+  return getLocationQueryParam("refresh");
 }
 
 function isForcedRealDataRefresh() {
@@ -8525,6 +8545,68 @@ function getVerifiedRealDataDefaultStock() {
     stocks[0];
 }
 
+function shouldResetLocalStateFromQuery() {
+  return /^(true|1|yes)$/i.test(getLocationQueryParam("resetLocalState").trim());
+}
+
+const testLocalStateStorageKeys = [
+  "lastSearch",
+  "recentSearches",
+  "selectedMarket",
+  "selectedStockCode",
+  "selectedStockMetadata",
+  "selectedStockSearchSourceCode",
+  "selectedStockSearchSourceStatus",
+];
+
+function clearTestLocalStateIfRequested() {
+  if (!shouldResetLocalStateFromQuery()) return false;
+  testLocalStateStorageKeys.forEach((key) => localStorage.removeItem(key));
+  return true;
+}
+
+function resolveStartupStockFromQuery() {
+  const rawCode = (
+    getLocationQueryParam("symbol") ||
+    getLocationQueryParam("stock") ||
+    getLocationQueryParam("code")
+  ).trim();
+  if (!rawCode) return null;
+  const requestedMarket = getLocationQueryParam("market").trim();
+  const normalizedMarket = validMarkets.includes(requestedMarket) ? requestedMarket : "";
+  const normalizedCode = rawCode.toLowerCase();
+  return (
+    stocks.find(
+      (stock) =>
+        stock.code.toLowerCase() === normalizedCode &&
+        (!normalizedMarket || stock.market === normalizedMarket),
+    ) ||
+    stocks.find((stock) => stock.code.toLowerCase() === normalizedCode) ||
+    null
+  );
+}
+
+function writeSelectedStockStorage(stock) {
+  if (!stock) return;
+  localStorage.setItem("selectedMarket", stock.market);
+  localStorage.setItem("selectedStockCode", stock.code);
+  if (stock.isMetadataOnly) {
+    localStorage.setItem(
+      "selectedStockMetadata",
+      JSON.stringify({
+        code: stock.code,
+        name: stock.name,
+        market: stock.market,
+        source: stock.source || "metadata-only-catalog",
+      }),
+    );
+  } else {
+    localStorage.removeItem("selectedStockMetadata");
+  }
+}
+
+const didResetLocalStateFromQuery = clearTestLocalStateIfRequested();
+const startupStockFromQuery = resolveStartupStockFromQuery();
 const savedMarket = sanitizeMarket(localStorage.getItem("selectedMarket"));
 const savedStockCode = localStorage.getItem("selectedStockCode");
 const savedMetadataStock = readJsonStorage(
@@ -8533,13 +8615,18 @@ const savedMetadataStock = readJsonStorage(
   sanitizeStoredSelectedStock,
 );
 const savedStock =
-  isForcedRealDataRefresh()
+  startupStockFromQuery ||
+  (isForcedRealDataRefresh()
     ? getVerifiedRealDataDefaultStock()
     : stocks.find((stock) => stock.code === savedStockCode) ||
       (savedMetadataStock?.code === savedStockCode ? savedMetadataStock : null) ||
       (savedStockCode ? null : getVerifiedRealDataDefaultStock()) ||
       stocks.find((stock) => stock.market === savedMarket) ||
-      stocks[0];
+      stocks[0]);
+
+if (didResetLocalStateFromQuery || startupStockFromQuery) {
+  writeSelectedStockStorage(savedStock);
+}
 
 function localReadinessEvidence(passedChecks, totalChecks, sourceEndpoints) {
   return {
@@ -8559,7 +8646,7 @@ const projectProgress = {
   completed: [
     "PWA 网页骨架、中文极简 UI、A/HK/US 市场导航",
     "严格真实数据模式、自选股、持仓、提醒、会话管理和审计链路",
-    "后端 API、生产门禁规划、490 条自动化回归目标",
+    "后端 API、生产门禁规划、491 条自动化回归目标",
     "主卡片已拆分规则参考和完整 AI 状态，规则概率生成后不再归为待AI模型",
     "首屏加载阶段真实数据回来前不再展示本地演示行情、走势图或情景价格",
     "后端分析返回后，首页主卡片会同步概率、行动参考和分析置信度",
@@ -8672,10 +8759,7 @@ if (shouldClearBackendStatusCacheOnRefresh()) {
     "selectedStockSearchSourceStatus",
   ].forEach((key) => localStorage.removeItem(key));
   if (isForcedRealDataRefresh()) {
-    const realDataDefaultStock = getVerifiedRealDataDefaultStock();
-    localStorage.setItem("selectedMarket", realDataDefaultStock.market);
-    localStorage.setItem("selectedStockCode", realDataDefaultStock.code);
-    localStorage.removeItem("selectedStockMetadata");
+    writeSelectedStockStorage(savedStock);
     localStorage.setItem("apiMode", "backend");
     localStorage.setItem("apiBaseUrl", defaultApiBaseUrl);
   }

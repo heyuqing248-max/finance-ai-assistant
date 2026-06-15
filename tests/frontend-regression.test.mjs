@@ -3063,7 +3063,7 @@ test("refresh query clears stale backend status cache without deleting user data
   assert.match(app.localStorage.getItem("portfolio"), /buyPrice/);
   assert.match(app.localStorage.getItem("reminderRules"), /rule-1/);
   assert.match(app.byId.get("projectProgressState").innerHTML, /测试版状态更新时间：2026-06-14/);
-  assert.match(app.byId.get("projectProgressState").innerHTML, /490 条自动化回归目标/);
+  assert.match(app.byId.get("projectProgressState").innerHTML, /491 条自动化回归目标/);
   assert.doesNotMatch(app.byId.get("projectProgressState").innerHTML, /旧缓存|2026-06-10/);
 });
 
@@ -3079,7 +3079,7 @@ test("project progress renders production database cutover evidence", () => {
   assert.match(progressHtml, /计算依据 26\/28 项通过/);
   assert.match(progressHtml, /真实数据库连接和运行时切换仍未完成/);
   assert.match(progressHtml, /\/api\/database\/production-repository-adapter/);
-  assert.match(progressHtml, /490 条自动化回归/);
+  assert.match(progressHtml, /491 条自动化回归/);
 });
 
 test("project progress renders deployment preflight evidence", () => {
@@ -3094,7 +3094,7 @@ test("project progress renders deployment preflight evidence", () => {
   assert.match(progressHtml, /计算依据 16\/18 项通过/);
   assert.match(progressHtml, /真实外部投递 provider 和后台 worker 仍未启用/);
   assert.match(progressHtml, /\/api\/notification-services/);
-  assert.match(progressHtml, /490 条自动化回归/);
+  assert.match(progressHtml, /491 条自动化回归/);
 });
 
 test("project progress renders compliance release evidence", () => {
@@ -3109,7 +3109,7 @@ test("project progress renders compliance release evidence", () => {
   assert.match(progressHtml, /计算依据 15\/18 项通过/);
   assert.match(progressHtml, /真实用户确认、法律复核和公开发布总门禁仍未完成/);
   assert.match(progressHtml, /\/api\/compliance\/status/);
-  assert.match(progressHtml, /490 条自动化回归/);
+  assert.match(progressHtml, /491 条自动化回归/);
 });
 
 test("settings keeps developer diagnostics collapsed by default", () => {
@@ -4156,10 +4156,10 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     firstRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v148",
+    "finance-ai-assistant-v149",
   );
   assert.match(firstRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
-  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v148/);
+  assert.match(firstRun.byId.get("statusMessage").textContent, /finance-ai-assistant-v149/);
 
   const secondRun = createHarness(firstRun.localStorage.snapshot(), {
     navigatorImpl: {
@@ -4176,7 +4176,7 @@ test("service worker ready state reports offline cache once per version", async 
 
   assert.equal(
     secondRun.localStorage.getItem("offlineCacheReadyVersion"),
-    "finance-ai-assistant-v148",
+    "finance-ai-assistant-v149",
   );
   assert.doesNotMatch(secondRun.byId.get("statusMessage").textContent, /离线缓存已准备/);
 });
@@ -20127,6 +20127,54 @@ test("refresh startup clears stale selected A-share and opens verified MSFT real
   assert.equal(app.byId.get("selectedStockName").textContent, "Microsoft · MSFT");
   assert.equal(app.localStorage.getItem("selectedMarket"), "us");
   assert.equal(app.localStorage.getItem("selectedStockCode"), "MSFT");
+});
+
+test("resetLocalState query clears local search and current stock state before startup", () => {
+  const app = createHarness(
+    {
+      selectedMarket: "hk",
+      selectedStockCode: "0700",
+      selectedStockMetadata: JSON.stringify({ code: "0700", name: "腾讯控股", market: "hk" }),
+      selectedStockSearchSourceCode: "0700",
+      selectedStockSearchSourceStatus: "metadata-only-catalog",
+      lastSearch: "腾讯控股",
+      recentSearches: JSON.stringify(["腾讯控股", "Apple"]),
+      watchlist: JSON.stringify(["0700"]),
+    },
+    {
+      location: { search: "?resetLocalState=true" },
+    },
+  );
+
+  assert.equal(app.byId.get("selectedStockName").textContent, "Microsoft · MSFT");
+  assert.equal(app.localStorage.getItem("selectedMarket"), "us");
+  assert.equal(app.localStorage.getItem("selectedStockCode"), "MSFT");
+  assert.equal(app.localStorage.getItem("selectedStockMetadata"), null);
+  assert.equal(app.localStorage.getItem("selectedStockSearchSourceCode"), null);
+  assert.equal(app.localStorage.getItem("selectedStockSearchSourceStatus"), null);
+  assert.equal(app.localStorage.getItem("lastSearch"), null);
+  assert.equal(app.localStorage.getItem("recentSearches"), null);
+  assert.match(app.localStorage.getItem("watchlist"), /0700/);
+});
+
+test("resetLocalState query can open a specified stock instead of the default", () => {
+  const app = createHarness(
+    {
+      selectedMarket: "hk",
+      selectedStockCode: "0700",
+      lastSearch: "腾讯控股",
+      recentSearches: JSON.stringify(["腾讯控股"]),
+    },
+    {
+      location: { search: "?resetLocalState=true&market=us&symbol=AAPL" },
+    },
+  );
+
+  assert.equal(app.byId.get("selectedStockName").textContent, "Apple · AAPL");
+  assert.equal(app.localStorage.getItem("selectedMarket"), "us");
+  assert.equal(app.localStorage.getItem("selectedStockCode"), "AAPL");
+  assert.equal(app.localStorage.getItem("lastSearch"), null);
+  assert.equal(app.localStorage.getItem("recentSearches"), null);
 });
 
 test("connected AI settings render local model key setup without exposing a key", () => {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "finance-ai-assistant-v148";
+const CACHE_NAME = "finance-ai-assistant-v149";
 const RUNTIME_CACHE_NAME = "finance-ai-assistant-runtime-v1";
 const CORE_ASSETS = [
   "./",
