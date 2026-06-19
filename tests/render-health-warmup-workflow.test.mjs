@@ -5,8 +5,10 @@ import { readFileSync } from "node:fs";
 const workflow = readFileSync(".github/workflows/render-health-warmup.yml", "utf8");
 const docs = readFileSync("docs/technical/RENDER_WARMUP.md", "utf8");
 
-test("Render warmup workflow schedules health checks without committing to main", () => {
-  assert.match(workflow, /cron: "\*\/10 \* \* \* \*"/);
+test("Render warmup workflow is manual-only and does not commit to main", () => {
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /schedule:/);
+  assert.doesNotMatch(workflow, /cron:/);
   assert.match(workflow, /RENDER_URL: https:\/\/finance-ai-assistant-web\.onrender\.com/);
   assert.match(workflow, /STATUS_BRANCH: render-health-status/);
   assert.match(workflow, /render-health-status-check\.mjs/);
@@ -21,5 +23,7 @@ test("Render warmup documentation points to the public status branch", () => {
   assert.match(docs, /render-health-status/);
   assert.match(docs, /render-health\.json/);
   assert.match(docs, /避免每次状态更新都触发 Render 重新部署/);
+  assert.match(docs, /自动预热已关闭/);
+  assert.match(docs, /manual-only/i);
   assert.match(docs, /manual warmup remains recommended/i);
 });

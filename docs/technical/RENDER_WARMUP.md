@@ -9,20 +9,20 @@ Free Render services can sleep after inactivity. The first visitor may see Rende
 ## 免费处理方案 / Free Mitigation
 
 1. 演示前手动打开固定网址，等首页加载完成后再发给别人。
-2. GitHub Actions 每 10 分钟请求固定 Render 网址，连续检查 180 秒，尽量保持服务处于热状态。
+2. 自动预热已关闭：GitHub Actions 现在只保留手动触发入口，避免定时任务失败后持续向 Gmail 发送通知邮件。
 3. 检查覆盖：`/`、`/api/health`、`/api/analysis?symbol=MSFT&riskProfile=balanced`、`/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1`、`/api/ai-services`。
-4. 最近一次健康检查会发布到独立分支 `render-health-status`，避免每次状态更新都触发 Render 重新部署。
+4. 手动运行健康检查时，最近一次健康检查会发布到独立分支 `render-health-status`，避免每次状态更新都触发 Render 重新部署。
 5. Render 后端通过 `FINANCE_AI_STABLE_HEALTH_STATUS_URL` 读取这个 JSON；通过后，“稳定访问门禁”显示已通过。
 
 1. Before a demo, manually open the fixed URL and wait until the homepage fully loads before sharing it.
-2. GitHub Actions requests the fixed Render URL every 10 minutes and checks it continuously for 180 seconds when possible.
+2. Automatic warmup is disabled: GitHub Actions is now manual-only to avoid scheduled-job failures sending repeated Gmail notifications.
 3. The check covers `/`, `/api/health`, `/api/analysis?symbol=MSFT&riskProfile=balanced`, `/api/stocks/search?q=%E8%85%BE%E8%AE%AF%E6%8E%A7%E8%82%A1`, and `/api/ai-services`.
-4. The latest health status is published to a separate `render-health-status` branch so status updates do not trigger Render redeploys.
+4. When the health check is run manually, the latest health status is published to a separate `render-health-status` branch so status updates do not trigger Render redeploys.
 5. The Render backend reads this JSON through `FINANCE_AI_STABLE_HEALTH_STATUS_URL`; when it passes, the stable access gate shows as passed.
 
 ## 文件 / Files
 
-- Workflow: `.github/workflows/render-health-warmup.yml`
+- Workflow: `.github/workflows/render-health-warmup.yml`（manual-only / 仅手动触发）
 - Local/manual script: `npm run check:render-health -- --duration-ms 180000 --interval-ms 15000 --timeout-ms 30000`
 - JSON status: `https://raw.githubusercontent.com/heyuqing248-max/finance-ai-assistant/render-health-status/render-health.json`
 - HTML status file: `https://raw.githubusercontent.com/heyuqing248-max/finance-ai-assistant/render-health-status/index.html`
@@ -31,10 +31,10 @@ Free Render services can sleep after inactivity. The first visitor may see Rende
 
 ## 注意 / Notes
 
-- GitHub scheduled workflows may be delayed by GitHub's queue and are not a paid uptime guarantee.
+- 自动预热已关闭；如需临时预热，只能手动运行 workflow 或本地脚本。
 - Render free-tier behavior can still change, so demo-critical sessions should still use manual warmup first.
 - The workflow writes only health metadata and never writes API keys or secrets.
 
-- GitHub scheduled workflows can be delayed and are not a paid uptime guarantee.
+- Automatic warmup is disabled; use the workflow or local script manually for temporary warmup.
 - Render free-tier behavior can still change, so manual warmup remains recommended for important demos.
 - The workflow writes only health metadata and never writes API keys or secrets.
